@@ -117,7 +117,8 @@ export async function POST(
   console.log("[process claim result]", {
     id,
     updateError: updateError?.message ?? null,
-    updatedRows: updatedRows?.length ?? 0,
+    updatedRowsCount: updatedRows?.length ?? 0,
+    updatedRows,
   });
 
   if (updateError) {
@@ -164,7 +165,7 @@ export async function POST(
     console.log("[process failed update result]", {
       id,
       failUpdateError: failUpdateError?.message ?? null,
-      failedRows: failedRows?.length ?? 0,
+      failedRowsCount: failedRows?.length ?? 0,
       failedRows,
     });
     if (failUpdateError) {
@@ -200,7 +201,7 @@ export async function POST(
       console.log("[process failed update result]", {
         id,
         failUpdateError: failUpdateError?.message ?? null,
-        failedRows: failedRows?.length ?? 0,
+        failedRowsCount: failedRows?.length ?? 0,
         failedRows,
       });
       if (failUpdateError) {
@@ -237,7 +238,7 @@ export async function POST(
       console.log("[process completed update result]", {
         id,
         updateError: updateError?.message ?? null,
-        updatedRows: updatedRows?.length ?? 0,
+        updatedRowsCount: updatedRows?.length ?? 0,
         updatedRows,
       });
       if (updateError) {
@@ -284,7 +285,7 @@ export async function POST(
       console.log("[process completed update result]", {
         id,
         updateError: updateError?.message ?? null,
-        updatedRows: updatedRows?.length ?? 0,
+        updatedRowsCount: updatedRows?.length ?? 0,
         updatedRows,
       });
       if (updateError) {
@@ -326,7 +327,7 @@ export async function POST(
     console.log("[process failed update result]", {
       id,
       failUpdateError: failUpdateError?.message ?? null,
-      failedRows: failedRows?.length ?? 0,
+      failedRowsCount: failedRows?.length ?? 0,
       failedRows,
     });
     if (failUpdateError) {
@@ -359,7 +360,7 @@ export async function POST(
     console.log("[process failed update result]", {
       id,
       failUpdateError: failUpdateError?.message ?? null,
-      failedRows: failedRows?.length ?? 0,
+      failedRowsCount: failedRows?.length ?? 0,
       failedRows,
     });
     if (failUpdateError) {
