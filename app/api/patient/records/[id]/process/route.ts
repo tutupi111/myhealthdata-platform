@@ -118,7 +118,6 @@ export async function POST(
     id,
     updateError: updateError?.message ?? null,
     updatedRows: updatedRows?.length ?? 0,
-    updatedRows,
   });
 
   if (updateError) {
