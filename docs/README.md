@@ -6,6 +6,7 @@
 
 | 你想… | 读这份 |
 |--------|--------|
+| **当前开发进度与已知问题** | [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md) |
 | 了解产品目标与范围 | [`product/EHF-China-POC-PRD-v1.md`](product/EHF-China-POC-PRD-v1.md) |
 | 查页面路由与字段 | [`product/EHF-China-POC-SiteMap-v1.md`](product/EHF-China-POC-SiteMap-v1.md) |
 | 本地跑演示 | [`DEMO.md`](DEMO.md) |
@@ -24,6 +25,7 @@
 ```
 docs/
 ├── README.md                 # 本索引
+├── DEVELOPMENT_STATUS.md     # ★ 阶段进度 + 问题现状（2026-05）
 ├── DEMO.md                   # 演示流程与页面清单
 ├── AI-MODULE.md              # AI 模块（产品 + 架构 + 现网行为）
 ├── product/                  # PRD、SiteMap
