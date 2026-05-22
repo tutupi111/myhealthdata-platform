@@ -10,6 +10,7 @@
 | 查页面路由与字段 | [`product/EHF-China-POC-SiteMap-v1.md`](product/EHF-China-POC-SiteMap-v1.md) |
 | 本地跑演示 | [`DEMO.md`](DEMO.md) |
 | 前端接 API | [`apidoc/FRONTEND_INTEGRATION.md`](apidoc/FRONTEND_INTEGRATION.md) → [`apidoc/EHF_API_REFERENCE.md`](apidoc/EHF_API_REFERENCE.md) |
+| 管理员账号 / 改密 / 找回密码 | [`apidoc/ADMIN_AUTH_CHANGE_GUIDE.md`](apidoc/ADMIN_AUTH_CHANGE_GUIDE.md) |
 | 自建服务器 / 目标架构 | [`apidoc/Server-Development-Requirements-v1.md`](apidoc/Server-Development-Requirements-v1.md) |
 | 在现有 App Data Hub 上落地 | [`apidoc/HERMES_BACKEND_IMPLEMENTATION_PLAN.md`](apidoc/HERMES_BACKEND_IMPLEMENTATION_PLAN.md) |
 | AI 上传与解析模块 | [`AI-MODULE.md`](AI-MODULE.md) |
@@ -25,6 +26,7 @@ docs/
 ├── product/                  # PRD、SiteMap
 ├── apidoc/                   # API 与后端
 │   ├── EHF_API_REFERENCE.md  # ★ 主 API 文档
+│   ├── ADMIN_AUTH_CHANGE_GUIDE.md  # 管理员账号安全联调
 │   ├── FRONTEND_INTEGRATION.md
 │   ├── Server-Development-Requirements-v1.md
 │   └── HERMES_BACKEND_IMPLEMENTATION_PLAN.md

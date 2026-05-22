@@ -13,7 +13,7 @@
 |------|------|
 | 2026-05-21 | 初版 `EHF_API.md` + `EHF_API_MISSING.md` 缺口清单 |
 | 2026-05-22 | P0/P1/P2 接口补齐（登录、管理列表、AI、补充请求等） |
-| 2026-05-23 | 管理员预置账号、改密、绑定邮箱、找回密码（部分待后端实现） |
+| 2026-05-23 | 管理员预置账号、改密、绑定邮箱、找回密码（后端已实现，见 ADMIN_AUTH_CHANGE_GUIDE） |
 
 历史缺口清单见 `docs/archive/API_MISSING_v1.md`。
 
@@ -732,35 +732,29 @@ PATCH /v1/ehf/requests/{request_id}
 
 ---
 
-## 9. 管理员账号与安全（2026-05-23）
+## 9. 管理员账号与安全（2026-05-22）
 
-> 前端已实现：`/admin/account`、`/forgot-password`、`/reset-password`；账号映射见 `lib/auth/adminAccount.ts`。
+> **后端已实现**（`17 passed`）。前端已实现：`/admin/account`、`/forgot-password`、`/reset-password`。  
+> 联调步骤与验收清单：[`ADMIN_AUTH_CHANGE_GUIDE.md`](ADMIN_AUTH_CHANGE_GUIDE.md)
 
 ### 9.1 预置管理员登录
 
-管理端 UI 输入 `admin1` / `admin2` / `admin3`，前端映射为 `admin1@ehf.admin` 等再调用 `POST /v1/ehf/auth/login`。
+管理端 UI 输入 `admin1` / `admin2` / `admin3` → 前端映射为 `admin1@ehf.admin` 等 → `POST /v1/ehf/auth/login`。
 
-| UI 账号 | 登录 email | 初始密码（POC seed） | `ehf_role` |
-|---------|------------|----------------------|------------|
-| admin1 | `admin1@ehf.admin` | 运维配置 | admin |
-| admin2 | `admin2@ehf.admin` | 同上 | admin |
-| admin3 | `admin3@ehf.admin` | 同上 | admin |
+绑定邮箱仅更新 `profile.contact_email`，**不修改** `user.email`（登录仍用短账号 + `@ehf.admin`）。
 
-绑定邮箱写入 `profile.contact_email`，**不要**修改 `users.email`（否则破坏 `@ehf.admin` 登录）。
+生产环境 `POST /v1/ehf/auth/register-admin` 返回 `403`。
 
-### 9.2 账号接口（部分待后端实现）
+### 9.2 账号接口
 
 | 方法 | 路径 | 权限 | 说明 |
 |------|------|------|------|
-| GET | `/v1/ehf/admin/me` | admin | `AdminProfile` |
+| GET | `/v1/ehf/auth/me` | 已登录 | admin 含 `AdminProfile` |
+| GET | `/v1/ehf/admin/me` | admin | 账号与安全页 |
 | POST | `/v1/ehf/auth/change-password` | 已登录 | `current_password`, `new_password`（≥8） |
-| POST | `/v1/ehf/auth/bind-email` | admin | `email`, `password` 确认身份 |
-| POST | `/v1/ehf/auth/forgot-password` | 公开 | 向 `contact_email` 发重置链接 |
-| POST | `/v1/ehf/auth/reset-password` | 公开 | `token`, `new_password` |
-
-`GET /v1/ehf/auth/me` 在 admin 登录时应返回非空 `AdminProfile`（含 `username`, `contact_email`, `email_verified`）。
-
-完整字段与验收清单见 `docs/archive/EHF_ADMIN_AUTH_v1.md`。
+| POST | `/v1/ehf/auth/bind-email` | admin | `email`, `password` |
+| POST | `/v1/ehf/auth/forgot-password` | 公开 | 统一成功文案，防邮箱枚举 |
+| POST | `/v1/ehf/auth/reset-password` | 公开 | `token`, `new_password`；成功后 token 失效 |
 
 ---
 

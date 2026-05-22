@@ -122,7 +122,9 @@ export const zh = {
     emailBound: "邮箱已绑定",
     passwordMismatch: "两次输入的新密码不一致",
     passwordMinLength: "新密码至少 8 位",
-    apiPending: "该功能需要后端接口支持，请联系运维确认服务已部署",
+    bindEmailHint: "建议绑定邮箱，用于后续通过邮箱找回密码。",
+    orgName: "组织",
+    emailNotVerified: "未验证",
   },
   forgotPassword: {
     title: "找回密码",

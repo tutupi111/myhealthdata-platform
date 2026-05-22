@@ -1,4 +1,4 @@
-/** EHF App Data Hub API 类型（与 docs/apidoc/EHF_FRONTEND_API_GUIDE 对齐） */
+/** EHF App Data Hub API 类型（与 docs/apidoc/EHF_API_REFERENCE.md 对齐） */
 
 export type EhfRole = "patient" | "researcher" | "admin";
 
@@ -19,6 +19,7 @@ export interface EhfUser {
   email: string;
   ehf_role: EhfRole;
   role?: string;
+  display_name?: string | null;
 }
 
 export interface PatientProfile {

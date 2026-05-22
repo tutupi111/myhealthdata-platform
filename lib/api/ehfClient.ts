@@ -168,21 +168,6 @@ export async function ehfRegisterResearcher(body: {
   return result;
 }
 
-export async function ehfRegisterAdmin(body: {
-  email: string;
-  password: string;
-  display_name: string;
-  org_name: string;
-}): Promise<AuthLoginResponse> {
-  const result = await ehfFetch<AuthLoginResponse>(
-    "/v1/ehf/auth/register-admin",
-    { method: "POST", body: JSON.stringify(body) },
-    false
-  );
-  setAccessToken(result.access_token);
-  return result;
-}
-
 export async function ehfGetMe(): Promise<AuthMeResponse> {
   return ehfFetch<AuthMeResponse>("/v1/ehf/auth/me");
 }

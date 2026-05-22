@@ -39,6 +39,7 @@ Token 存 `localStorage`，键名 `ehf_access_token`（`EHF_TOKEN_KEY`）。
 
 - 路由守卫：`components/auth/AuthGuard.tsx`
 - 管理端登录：用户输入 `admin1` 等短账号 → `lib/auth/adminAccount.ts` 映射为 `admin1@ehf.admin`
+- 管理员账号安全（改密、绑邮箱、找回密码）：见 [`ADMIN_AUTH_CHANGE_GUIDE.md`](ADMIN_AUTH_CHANGE_GUIDE.md)
 
 ## 4. 常用客户端函数
 
@@ -52,8 +53,10 @@ Token 存 `localStorage`，键名 `ehf_access_token`（`EHF_TOKEN_KEY`）。
 | 上传 | `ehfUploadHealthRecord` |
 | 触发处理 | `ehfProcessHealthRecord` |
 | 授权 | `ehfCreateConsent` / `ehfRevokeConsent` |
+| 管理员资料 / 改密 / 绑邮箱 | `ehfGetAdminProfile` / `ehfChangePassword` / `ehfBindEmail` |
+| 忘记 / 重置密码 | `ehfForgotPassword` / `ehfResetPassword` |
 
-完整列表见 `lib/api/ehfClient.ts` 导出。
+完整列表见 `lib/api/ehfClient.ts` 导出。勿调用已移除的 `register-admin`。
 
 ## 5. 联调检查清单
 

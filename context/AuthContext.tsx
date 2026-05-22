@@ -45,11 +45,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 function profileDisplayName(
   profile: PatientProfile | ResearcherProfile | AdminProfile | null,
   email: string,
-  role: EhfRole
+  role: EhfRole,
+  userDisplayName?: string | null
 ): string {
   if (role === "admin") {
     const adminProfile = profile as AdminProfile | null;
     if (adminProfile?.display_name) return adminProfile.display_name;
+    if (userDisplayName) return userDisplayName;
     if (adminProfile?.username) return adminProfile.username;
     return adminEmailToUsername(email);
   }
@@ -59,14 +61,19 @@ function profileDisplayName(
 }
 
 function buildAuthUser(
-  user: { id: string; email: string; ehf_role: EhfRole },
+  user: { id: string; email: string; ehf_role: EhfRole; display_name?: string | null },
   profile: PatientProfile | ResearcherProfile | AdminProfile | null
 ): AuthUser {
   return {
     id: user.id,
     email: user.email,
     role: user.ehf_role,
-    displayName: profileDisplayName(profile, user.email, user.ehf_role),
+    displayName: profileDisplayName(
+      profile,
+      user.email,
+      user.ehf_role,
+      user.display_name
+    ),
     profile,
   };
 }

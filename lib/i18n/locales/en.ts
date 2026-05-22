@@ -125,7 +125,9 @@ export const en: Messages = {
     emailBound: "Email bound successfully",
     passwordMismatch: "New passwords do not match",
     passwordMinLength: "New password must be at least 8 characters",
-    apiPending: "This feature requires backend support. Contact ops if the service is not deployed yet.",
+    bindEmailHint: "Bind an email to recover your password later.",
+    orgName: "Organization",
+    emailNotVerified: "Not verified",
   },
   forgotPassword: {
     title: "Forgot password",

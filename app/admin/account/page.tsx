@@ -24,6 +24,7 @@ export default function AdminAccountPage() {
   const { t } = useLocale();
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -38,15 +39,23 @@ export default function AdminAccountPage() {
   const [bindError, setBindError] = useState<string | null>(null);
   const [bindLoading, setBindLoading] = useState(false);
 
+  const fallbackProfile =
+    user?.role === "admin" ? (user.profile as AdminProfile | null) : null;
+  const effectiveProfile = profile ?? fallbackProfile;
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoadingProfile(true);
+      setProfileError(null);
       try {
         const data = await ehfGetAdminProfile();
         if (!cancelled) setProfile(data);
-      } catch {
-        if (!cancelled) setProfile(null);
+      } catch (err) {
+        if (!cancelled) {
+          setProfile(null);
+          setProfileError(parseApiErrorMessage(err));
+        }
       } finally {
         if (!cancelled) setLoadingProfile(false);
       }
@@ -57,12 +66,11 @@ export default function AdminAccountPage() {
   }, []);
 
   const username =
-    profile?.username ??
+    effectiveProfile?.username ??
     (user?.email ? adminEmailToUsername(user.email) : "—");
 
-  const displayEmail =
-    profile?.contact_email ??
-    (user?.email && !user.email.endsWith("@ehf.admin") ? user.email : null);
+  const displayEmail = effectiveProfile?.contact_email ?? null;
+  const showBindHint = !displayEmail;
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,8 +95,7 @@ export default function AdminAccountPage() {
       setNewPassword("");
       setConfirmNewPassword("");
     } catch (err) {
-      const msg = parseApiErrorMessage(err);
-      setPasswordError(msg.includes("404") ? t("adminAccount.apiPending") : msg);
+      setPasswordError(parseApiErrorMessage(err));
     } finally {
       setPasswordLoading(false);
     }
@@ -112,12 +119,12 @@ export default function AdminAccountPage() {
       try {
         const data = await ehfGetAdminProfile();
         setProfile(data);
+        setProfileError(null);
       } catch {
         /* ignore */
       }
     } catch (err) {
-      const msg = parseApiErrorMessage(err);
-      setBindError(msg.includes("404") ? t("adminAccount.apiPending") : msg);
+      setBindError(parseApiErrorMessage(err));
     } finally {
       setBindLoading(false);
     }
@@ -138,12 +145,31 @@ export default function AdminAccountPage() {
         <p className="text-muted-foreground mt-1">{t("adminAccount.subtitle")}</p>
       </div>
 
+      {showBindHint && (
+        <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-4 py-3">
+          {t("adminAccount.bindEmailHint")}
+        </p>
+      )}
+
       <PageSection title={t("adminAccount.username")}>
         <Card>
           <CardContent className="pt-6 space-y-3">
+            {profileError && (
+              <p className="text-sm text-destructive">{profileError}</p>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-sm">{username}</span>
+              {effectiveProfile?.display_name && (
+                <span className="text-sm text-muted-foreground">
+                  ({effectiveProfile.display_name})
+                </span>
+              )}
             </div>
+            {effectiveProfile?.org_name && (
+              <p className="text-sm text-muted-foreground">
+                {t("adminAccount.orgName")}: {effectiveProfile.org_name}
+              </p>
+            )}
             <div className="text-sm text-muted-foreground">
               {t("adminAccount.boundEmail")}:{" "}
               {displayEmail ? (
@@ -151,9 +177,14 @@ export default function AdminAccountPage() {
               ) : (
                 <span>{t("adminAccount.noEmail")}</span>
               )}
-              {profile?.email_verified && (
+              {displayEmail && effectiveProfile?.email_verified && (
                 <Badge variant="secondary" className="ml-2">
                   {t("adminAccount.emailVerified")}
+                </Badge>
+              )}
+              {displayEmail && effectiveProfile?.email_verified === false && (
+                <Badge variant="outline" className="ml-2">
+                  {t("adminAccount.emailNotVerified")}
                 </Badge>
               )}
             </div>
@@ -188,6 +219,7 @@ export default function AdminAccountPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
+                  minLength={8}
                   autoComplete="new-password"
                 />
               </div>
@@ -199,6 +231,7 @@ export default function AdminAccountPage() {
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   required
+                  minLength={8}
                   autoComplete="new-password"
                 />
               </div>

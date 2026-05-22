@@ -37,12 +37,7 @@ function ForgotPasswordForm() {
       await ehfForgotPassword({ email: email.trim() });
       setSuccess(t("forgotPassword.sent"));
     } catch (err) {
-      const msg = parseApiErrorMessage(err);
-      if (msg.includes("404") || msg.toLowerCase().includes("not found")) {
-        setError(t("adminAccount.apiPending"));
-      } else {
-        setError(msg);
-      }
+      setError(parseApiErrorMessage(err));
     } finally {
       setLoading(false);
     }
