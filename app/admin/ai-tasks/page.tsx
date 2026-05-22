@@ -17,32 +17,29 @@ import {
 } from "@/components/ui/table";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Pencil, Loader2, Check } from "lucide-react";
-import {
-  type AiTaskConfig,
-  type AiModel,
-} from "@/lib/api/ehfTypes";
+import type { AiModel } from "@/lib/api/ehfTypes";
 import {
   ehfAdminListAiModels,
   ehfAdminListAiTaskConfigs,
   ehfAdminUpdateAiTaskConfig,
 } from "@/lib/api/ehfClient";
+import {
+  formatTaskConfigModelLabel,
+  normalizeAiTaskConfigRows,
+  type AiTaskConfigRow,
+} from "@/lib/ai/taskConfigDisplay";
 import { TASK_TYPE_LABELS, parseApiErrorMessage } from "@/lib/api/constants";
 import { useLocale } from "@/context/LocaleContext";
 import { AdminAiConfigHints } from "@/components/admin/AdminAiConfigHints";
 
-type ConfigWithModels = Omit<AiTaskConfig, "preferred_model" | "fallback_model"> & {
-  preferred_model?: { id: string; model_name: string } | null;
-  fallback_model?: { id: string; model_name: string } | null;
-};
-
 export default function AdminAiTasksPage() {
   const { t } = useLocale();
-  const [configs, setConfigs] = useState<ConfigWithModels[]>([]);
+  const [configs, setConfigs] = useState<AiTaskConfigRow[]>([]);
   const [models, setModels] = useState<AiModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingConfig, setEditingConfig] = useState<ConfigWithModels | null>(null);
+  const [editingConfig, setEditingConfig] = useState<AiTaskConfigRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     preferred_model_id: "" as string | null,
@@ -61,11 +58,9 @@ export default function AdminAiTasksPage() {
         ehfAdminListAiTaskConfigs(),
         ehfAdminListAiModels({ page_size: 100 }),
       ]);
-      const configsList = Array.isArray(configData)
-        ? configData
-        : (configData.items ?? (configData as { configs?: ConfigWithModels[] }).configs ?? []);
-      setConfigs(configsList as ConfigWithModels[]);
-      setModels(modelData.items ?? []);
+      const modelItems = modelData.items ?? [];
+      setModels(modelItems);
+      setConfigs(normalizeAiTaskConfigRows(configData));
     } catch (e) {
       setError(parseApiErrorMessage(e));
       setConfigs([]);
@@ -79,11 +74,11 @@ export default function AdminAiTasksPage() {
     fetchData();
   }, [fetchData]);
 
-  const openEdit = (c: ConfigWithModels) => {
+  const openEdit = (c: AiTaskConfigRow) => {
     setEditingConfig(c);
     setForm({
-      preferred_model_id: c.preferred_model_id ?? "",
-      fallback_model_id: c.fallback_model_id ?? "",
+      preferred_model_id: c.preferred_model_id ?? null,
+      fallback_model_id: c.fallback_model_id ?? null,
       prompt_template: c.prompt_template ?? "",
       timeout: c.timeout ?? 60,
       max_tokens: c.max_tokens ?? 4096,
@@ -163,10 +158,16 @@ export default function AdminAiTasksPage() {
                         {TASK_TYPE_LABELS[c.task_type] ?? c.task_type}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {c.preferred_model?.model_name ?? "—"}
+                        {formatTaskConfigModelLabel(c.preferred_model_id, models, {
+                          nested: c.preferred_model,
+                          flatName: c.preferred_model_name,
+                        })}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {c.fallback_model?.model_name ?? "—"}
+                        {formatTaskConfigModelLabel(c.fallback_model_id, models, {
+                          nested: c.fallback_model,
+                          flatName: c.fallback_model_name,
+                        })}
                       </TableCell>
                       <TableCell className="text-sm">
                         {c.timeout}s / {c.max_tokens}
