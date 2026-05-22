@@ -93,18 +93,6 @@ export function formatEhfDate(
 }
 
 export function parseApiErrorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    const msg = err.message;
-    try {
-      const match = msg.match(/API \d+: (.+)/);
-      if (match?.[1]) {
-        const parsed = JSON.parse(match[1]) as { error?: string; detail?: string };
-        return parsed.error ?? parsed.detail ?? msg;
-      }
-    } catch {
-      // ignore
-    }
-    return msg;
-  }
+  if (err instanceof Error && err.message) return err.message;
   return "请求失败";
 }

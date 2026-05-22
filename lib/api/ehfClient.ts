@@ -57,6 +57,34 @@ export function setAccessToken(token: string | null): void {
   else localStorage.removeItem(EHF_TOKEN_KEY);
 }
 
+function formatApiErrorMessage(body: unknown, status: number): string {
+  if (typeof body === "string" && body.trim()) return body.trim();
+  if (typeof body === "object" && body !== null) {
+    const o = body as Record<string, unknown>;
+    if (typeof o.error === "string" && o.error) return o.error;
+    if (typeof o.message === "string" && o.message) return o.message;
+    if (o.detail != null) {
+      if (typeof o.detail === "string") return o.detail;
+      if (Array.isArray(o.detail)) {
+        const parts = o.detail
+          .map((item) => {
+            if (typeof item === "string") return item;
+            if (item && typeof item === "object" && "msg" in item) {
+              return String((item as { msg: string }).msg);
+            }
+            return null;
+          })
+          .filter(Boolean);
+        if (parts.length) return parts.join("；");
+      }
+    }
+  }
+  if (status === 401) {
+    return "认证失败：请检查账号密码，或确认应用 API 凭证已正确配置";
+  }
+  return `请求失败 (${status})`;
+}
+
 export class EhfApiError extends Error {
   constructor(
     message: string,
@@ -97,11 +125,7 @@ export async function ehfFetch<T>(
     } catch {
       body = await res.text();
     }
-    const msg =
-      typeof body === "object" && body !== null && "error" in body
-        ? String((body as { error: string }).error)
-        : `API ${res.status}`;
-    throw new EhfApiError(msg, res.status, body);
+    throw new EhfApiError(formatApiErrorMessage(body, res.status), res.status, body);
   }
 
   if (res.status === 204) return undefined as T;

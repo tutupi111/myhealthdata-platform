@@ -27,7 +27,7 @@ export function AuthGuard({ role, children }: AuthGuardProps) {
     if (!hasChecked) return;
     if (!user) {
       const redirect = encodeURIComponent(pathname ?? DASHBOARD_BY_ROLE[role]);
-      router.replace(`/login?redirect=${redirect}`);
+      router.replace(`/login?role=${role}&redirect=${redirect}`);
       return;
     }
     if (user.role !== role) {

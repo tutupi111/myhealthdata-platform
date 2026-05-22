@@ -39,17 +39,35 @@ function LoginForm() {
   const roleHint = isPortalLogin ? t(`roles.${roleParam}`) : null;
   const hasProtectedRedirect = Boolean(redirect && redirect.startsWith("/"));
 
+  const portalRole = isPortalLogin ? (roleParam as AppRole) : null;
+  const roleMismatch =
+    isPortalLogin && user && portalRole && user.role !== portalRole;
+
   useEffect(() => {
     if (!hasChecked || !user || !isPortalLogin || hasProtectedRedirect) return;
-    logout();
-  }, [hasChecked, user, isPortalLogin, hasProtectedRedirect, logout]);
+    if (portalRole && user.role !== portalRole) {
+      logout();
+    }
+  }, [hasChecked, user, isPortalLogin, hasProtectedRedirect, logout, portalRole]);
 
   if (hasChecked && user) {
-    if (isPortalLogin && !hasProtectedRedirect) {
+    if (roleMismatch) {
       return (
         <AuthPageFrame>
           <div className="flex min-h-screen items-center justify-center p-4">
             <p className="text-muted-foreground">{t("common.switchingLogin")}</p>
+          </div>
+        </AuthPageFrame>
+      );
+    }
+
+    if (isPortalLogin && !hasProtectedRedirect) {
+      const to = DASHBOARD_BY_ROLE[user.role];
+      router.replace(to);
+      return (
+        <AuthPageFrame>
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <p className="text-muted-foreground">{t("common.redirecting")}</p>
           </div>
         </AuthPageFrame>
       );
