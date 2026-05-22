@@ -1,7 +1,7 @@
 # EHF 患者数据钱包迁移到 App Data Hub：Hermes 后端实施计划
 
 日期：2026-05-21
-来源需求：`Server-Development-Requirements-v1.md`
+来源需求：[`Server-Development-Requirements-v1.md`](Server-Development-Requirements-v1.md) · API 见 [`EHF_API_REFERENCE.md`](EHF_API_REFERENCE.md)
 
 ## 1. 我的实施判断
 

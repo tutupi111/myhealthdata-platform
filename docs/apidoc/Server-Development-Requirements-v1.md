@@ -99,7 +99,7 @@
 
 ## 四、数据库设计（统一 Schema）
 
-在 POC 完整 schema（`docs/EHF-China-POC-schema-v1.sql`）基础上，**合并** Supabase v0.2～v0.4 对健康档案与 AI 的扩展。建议在自建库中 **一次性执行** 下列设计（可按章节拆成迁移脚本）。
+在 POC 完整 schema（`docs/sql/EHF-China-POC-schema-v1.sql`）基础上，**合并** Supabase v0.2～v0.4 对健康档案与 AI 的扩展。建议在自建库中 **一次性执行** 下列设计（可按章节拆成迁移脚本）。
 
 ### 4.1 枚举类型
 
@@ -181,7 +181,7 @@ create index idx_health_records_created_at on health_records(created_at desc);
 
 ### 4.4 AI 相关表
 
-直接采用 `docs/supabase-v0.3-ai-tables.sql` 定义，建议补充：
+直接采用 `docs/sql/supabase-v0.3-ai-tables.sql` 定义，建议补充：
 
 ```sql
 -- ai_task_configs 可选增加 temperature
@@ -201,8 +201,8 @@ alter table ai_logs add column if not exists token_usage jsonb;
 | AI 任务配置 | 插入 5 条默认 `task_type`（与 v0.3 SQL 一致） |
 | 演示数据 | 可选：导入当前 mock 中的研究项目、患者 DID，便于联调 |
 
-完整 POC DDL 见：`docs/EHF-China-POC-schema-v1.sql`  
-AI 表 DDL 见：`docs/supabase-v0.3-ai-tables.sql`
+完整 POC DDL 见：`docs/sql/EHF-China-POC-schema-v1.sql`
+AI 表 DDL 见：`docs/sql/supabase-v0.3-ai-tables.sql`
 
 ---
 
@@ -416,7 +416,7 @@ health-files/{patient_profile_id}/{record_id}/{original_filename}
 
 ### 8.1 处理流水线
 
-上传完成后执行（与 `docs/v0.4-ai-processing-setup.md` 一致，建议改为 **异步 Worker**）：
+上传完成后执行（与 `docs/AI-MODULE.md` 一致，建议改为 **异步 Worker**）：
 
 ```
 upload → processing
@@ -591,7 +591,7 @@ UPLOAD_MAX_BYTES=20971520
 
 ### 阶段 5：验收与下线 Mock（1 天）
 
-- [ ] 跑通 Demo 脚本（`docs/Demo-Script-v0.1.md` 升级版）  
+- [ ] 跑通 Demo 脚本（`docs/DEMO.md`）  
 - [ ] 删除 mock 业务依赖  
 
 ---
@@ -629,15 +629,15 @@ UPLOAD_MAX_BYTES=20971520
 
 | 文档 | 路径 |
 |------|------|
-| 产品 PRD | `docs/EHF-China-POC-PRD-v1 copy.md` |
-| 完整 POC 数据库 | `docs/EHF-China-POC-schema-v1.sql` |
-| Supabase 健康档案 v0.2 | `docs/supabase-v0.2-health-records.sql` |
-| AI 表 v0.3 | `docs/supabase-v0.3-ai-tables.sql` |
-| AI 字段 v0.4 | `docs/supabase-v0.4-health-records-ai-fields.sql` |
-| AI 架构 | `docs/AI-Engine-Architecture.md` |
-| AI 处理说明 | `docs/v0.4-ai-processing-setup.md` |
-| 上传模块 PRD | `docs/AI-Upload-Module-PRD-v1.md` |
-| v0.1 Demo 范围 | `docs/V0.1-DEMO.md` |
+| 文档索引 | `docs/README.md` |
+| 产品 PRD | `docs/product/EHF-China-POC-PRD-v1.md` |
+| 完整 POC 数据库 | `docs/sql/EHF-China-POC-schema-v1.sql` |
+| Supabase 健康档案 v0.2 | `docs/sql/supabase-v0.2-health-records.sql` |
+| AI 表 v0.3 | `docs/sql/supabase-v0.3-ai-tables.sql` |
+| AI 字段 v0.4 | `docs/sql/supabase-v0.4-health-records-ai-fields.sql` |
+| AI 模块 | `docs/AI-MODULE.md` |
+| API 参考 | `docs/apidoc/EHF_API_REFERENCE.md` |
+| 演示 | `docs/DEMO.md` |
 
 ---
 
