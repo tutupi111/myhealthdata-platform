@@ -579,8 +579,8 @@ export async function ehfAdminDeleteAiModel(id: string): Promise<void> {
   await ehfFetch<void>(`/v1/ehf/admin/ai-models/${id}`, { method: "DELETE" });
 }
 
-export async function ehfAdminListAiTaskConfigs(): Promise<{ items: AiTaskConfig[] } | AiTaskConfig[]> {
-  return ehfFetch<{ items: AiTaskConfig[] } | AiTaskConfig[]>("/v1/ehf/admin/ai-task-configs");
+export async function ehfAdminListAiTaskConfigs(): Promise<unknown> {
+  return ehfFetch<unknown>("/v1/ehf/admin/ai-task-configs");
 }
 
 export async function ehfAdminUpdateAiTaskConfig(

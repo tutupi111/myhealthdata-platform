@@ -167,6 +167,8 @@ export const en: Messages = {
     moonshotHint:
       "Moonshot 400? Check base_url https://api.moonshot.cn/v1, model_name matches the console (e.g. moonshot-v1-8k), and API key. JSON mode is optional—the server retries without response_format if needed.",
     tasksEmpty: "No task configs. Ensure the backend seeded five task types or check /v1/ehf/admin/ai-task-configs.",
+    tasksNoModelBinding:
+      "No preferred/fallback model bindings were read from the API. If the table still shows dashes after saving, check the ai-task-configs response in Network for preferred_model_id; empty values require a backend GET/PATCH fix.",
     modelsPageDesc: "LLMs for structured extraction (OpenAI-compatible APIs)",
     tasksPageDesc: "Bind models to structured_extract; server OCR runs before LLM structuring",
   },

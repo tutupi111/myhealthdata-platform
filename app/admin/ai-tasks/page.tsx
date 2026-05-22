@@ -25,9 +25,11 @@ import {
 } from "@/lib/api/ehfClient";
 import {
   formatTaskConfigModelLabel,
+  mergeTaskConfigAfterSave,
   normalizeAiTaskConfigRows,
   type AiTaskConfigRow,
 } from "@/lib/ai/taskConfigDisplay";
+import { extractPaginatedItems } from "@/lib/api/unwrapApiResponse";
 import { TASK_TYPE_LABELS, parseApiErrorMessage } from "@/lib/api/constants";
 import { useLocale } from "@/context/LocaleContext";
 import { AdminAiConfigHints } from "@/components/admin/AdminAiConfigHints";
@@ -58,7 +60,7 @@ export default function AdminAiTasksPage() {
         ehfAdminListAiTaskConfigs(),
         ehfAdminListAiModels({ page_size: 100 }),
       ]);
-      const modelItems = modelData.items ?? [];
+      const modelItems = extractPaginatedItems<AiModel>(modelData);
       setModels(modelItems);
       setConfigs(normalizeAiTaskConfigRows(configData));
     } catch (e) {
@@ -92,16 +94,24 @@ export default function AdminAiTasksPage() {
     if (!editingConfig) return;
     setSaving(true);
     try {
-      await ehfAdminUpdateAiTaskConfig(editingConfig.id, {
+      const patch = {
         preferred_model_id: form.preferred_model_id || null,
         fallback_model_id: form.fallback_model_id || null,
         prompt_template: form.prompt_template.trim() || null,
         timeout: form.timeout,
         max_tokens: form.max_tokens,
         is_enabled: form.is_enabled,
-      });
+      };
+      await ehfAdminUpdateAiTaskConfig(editingConfig.id, patch);
+      setConfigs((prev) =>
+        prev.map((c) =>
+          c.id === editingConfig.id
+            ? mergeTaskConfigAfterSave(c, patch, models)
+            : c
+        )
+      );
       setSheetOpen(false);
-      fetchData();
+      void fetchData();
     } catch (e) {
       alert(parseApiErrorMessage(e));
     } finally {
@@ -111,6 +121,17 @@ export default function AdminAiTasksPage() {
 
   const activeModels = models.filter((m) => m.is_active);
 
+  const noModelBinding =
+    !loading &&
+    configs.length > 0 &&
+    configs.every(
+      (c) =>
+        !c.preferred_model_id &&
+        !c.fallback_model_id &&
+        !c.preferred_model_name &&
+        !c.fallback_model_name
+    );
+
   return (
     <div className="space-y-8">
       <div>
@@ -119,6 +140,12 @@ export default function AdminAiTasksPage() {
       </div>
 
       <AdminAiConfigHints />
+
+      {noModelBinding && (
+        <p className="text-sm text-amber-800 dark:text-amber-200 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3">
+          {t("adminAi.tasksNoModelBinding")}
+        </p>
+      )}
 
       <PageSection
         title="任务路由"

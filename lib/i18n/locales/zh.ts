@@ -163,6 +163,8 @@ export const zh = {
     moonshotHint:
       "若出现 Moonshot 400：请确认 base_url 为 https://api.moonshot.cn/v1，model_name 与控制台一致（如 moonshot-v1-8k、moonshot-v1-32k），API Key 有效；可先不勾选「支持 JSON」，后端会自动重试不带 response_format 的请求。",
     tasksEmpty: "暂无任务配置，请确认后端已初始化五种任务类型，或联系运维检查 /v1/ehf/admin/ai-task-configs",
+    tasksNoModelBinding:
+      "列表未读到任何首选/备用模型绑定。保存后若仍全部为「—」，请在浏览器开发者工具 Network 中查看 ai-task-configs 响应是否含 preferred_model_id；若为空需后端修复 GET/PATCH 持久化。",
     modelsPageDesc: "配置结构化抽取等任务使用的 LLM（OpenAI 兼容接口）",
     tasksPageDesc: "为 structured_extract 等任务绑定首选/备用模型；患者上传图片后由服务器 OCR，再调用此处配置的模型",
   },
