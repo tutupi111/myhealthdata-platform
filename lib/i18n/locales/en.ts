@@ -161,6 +161,15 @@ export const en: Messages = {
     showExtractedText: "Show full text",
     hideExtractedText: "Collapse",
   },
+  adminAi: {
+    pipelineHint:
+      "Images/PDF are OCR'd on the data server first; structured_extract only needs a text model (vision not required). OCR does not run in the browser.",
+    moonshotHint:
+      "Moonshot 400? Check base_url https://api.moonshot.cn/v1, model_name matches the console (e.g. moonshot-v1-8k), and API key. JSON mode is optional—the server retries without response_format if needed.",
+    tasksEmpty: "No task configs. Ensure the backend seeded five task types or check /v1/ehf/admin/ai-task-configs.",
+    modelsPageDesc: "LLMs for structured extraction (OpenAI-compatible APIs)",
+    tasksPageDesc: "Bind models to structured_extract; server OCR runs before LLM structuring",
+  },
   upload: {
     serverPipelineHint:
       "After upload, the server runs OCR/document parsing and AI structuring—you do not need local OCR.",

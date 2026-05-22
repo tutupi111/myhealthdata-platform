@@ -157,6 +157,15 @@ export const zh = {
     showExtractedText: "展开全文",
     hideExtractedText: "收起",
   },
+  adminAi: {
+    pipelineHint:
+      "图片/PDF 已在数据服务器完成 OCR 与文本提取；structured_extract 只需文本模型（不必勾选「支持视觉」）。OCR 由服务端 RapidOCR 完成，不在浏览器执行。",
+    moonshotHint:
+      "若出现 Moonshot 400：请确认 base_url 为 https://api.moonshot.cn/v1，model_name 与控制台一致（如 moonshot-v1-8k、moonshot-v1-32k），API Key 有效；可先不勾选「支持 JSON」，后端会自动重试不带 response_format 的请求。",
+    tasksEmpty: "暂无任务配置，请确认后端已初始化五种任务类型，或联系运维检查 /v1/ehf/admin/ai-task-configs",
+    modelsPageDesc: "配置结构化抽取等任务使用的 LLM（OpenAI 兼容接口）",
+    tasksPageDesc: "为 structured_extract 等任务绑定首选/备用模型；患者上传图片后由服务器 OCR，再调用此处配置的模型",
+  },
   upload: {
     serverPipelineHint:
       "文件上传至服务器后，由服务端完成 OCR/文档解析与 AI 结构化，无需在本机识别。",

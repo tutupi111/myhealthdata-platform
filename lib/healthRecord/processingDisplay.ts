@@ -27,6 +27,22 @@ export function hasMeaningfulStructuredData(record: HealthRecord): boolean {
   return Object.keys(sd).some((k) => k !== "file_name" && k !== "file_type");
 }
 
+/** 患者详情：对 Moonshot/LLM 类错误给出管理端排查提示 */
+export function getLlmConfigHint(processingError: string | null | undefined): string | null {
+  if (!processingError?.trim()) return null;
+  const lower = processingError.toLowerCase();
+  if (
+    lower.includes("moonshot") ||
+    lower.includes("chat/completions") ||
+    lower.includes("400 bad request") ||
+    lower.includes("401") ||
+    lower.includes("404")
+  ) {
+    return "这通常表示 structured_extract 调用的模型配置有误（模型名、base_url 或 API Key）。请到管理后台「AI 模型 / AI 任务」检查，或查看 AI 日志。若已有「原始识别文字」，说明 OCR 已成功，仅需修正 LLM 配置后点击「重新结构化」。";
+  }
+  return null;
+}
+
 export function getProcessingStatusLabel(
   status: string,
   labels: Messages["recordProcessing"]

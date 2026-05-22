@@ -25,8 +25,11 @@ import {
   ehfAdminUpdateAiModel,
 } from "@/lib/api/ehfClient";
 import { parseApiErrorMessage } from "@/lib/api/constants";
+import { useLocale } from "@/context/LocaleContext";
+import { AdminAiConfigHints } from "@/components/admin/AdminAiConfigHints";
 
 export default function AdminAiModelsPage() {
+  const { t } = useLocale();
   const [models, setModels] = useState<AiModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -162,9 +165,7 @@ export default function AdminAiModelsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">AI 模型</h1>
-          <p className="text-muted-foreground mt-1">
-            配置可用的 AI 模型，供任务路由选用
-          </p>
+          <p className="text-muted-foreground mt-1">{t("adminAi.modelsPageDesc")}</p>
         </div>
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <Button type="button" onClick={openCreate}>
@@ -291,6 +292,8 @@ export default function AdminAiModelsPage() {
           </SheetContent>
         </Sheet>
       </div>
+
+      <AdminAiConfigHints />
 
       <PageSection title="模型列表" description="管理可用于 AI 任务的模型">
         <Card>

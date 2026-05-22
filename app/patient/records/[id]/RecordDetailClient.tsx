@@ -19,6 +19,7 @@ import {
   parseApiErrorMessage,
 } from "@/lib/api/constants";
 import {
+  getLlmConfigHint,
   getProcessingFailureKind,
   getProcessingStatusLabel,
   hasExtractedText,
@@ -156,6 +157,7 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
   const statusLabel = getProcessingStatusLabel(record.processing_status, rp);
   const showStructured =
     hasMeaningfulStructuredData(record) && shouldUseStructuredDataView(record);
+  const llmHint = getLlmConfigHint(record.processing_error);
 
   return (
     <div className="space-y-8">
@@ -208,8 +210,11 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
       {failureKind === "structured_failed" && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-900 dark:text-amber-100 space-y-3">
           <p>{rp.structuredFailed}</p>
+          {llmHint && (
+            <p className="text-xs leading-relaxed opacity-90">{llmHint}</p>
+          )}
           {record.processing_error && (
-            <p className="text-xs text-muted-foreground break-words">
+            <p className="text-xs font-mono text-muted-foreground break-words">
               {record.processing_error}
             </p>
           )}

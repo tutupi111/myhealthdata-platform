@@ -27,6 +27,8 @@ import {
   ehfAdminUpdateAiTaskConfig,
 } from "@/lib/api/ehfClient";
 import { TASK_TYPE_LABELS, parseApiErrorMessage } from "@/lib/api/constants";
+import { useLocale } from "@/context/LocaleContext";
+import { AdminAiConfigHints } from "@/components/admin/AdminAiConfigHints";
 
 type ConfigWithModels = Omit<AiTaskConfig, "preferred_model" | "fallback_model"> & {
   preferred_model?: { id: string; model_name: string } | null;
@@ -34,6 +36,7 @@ type ConfigWithModels = Omit<AiTaskConfig, "preferred_model" | "fallback_model">
 };
 
 export default function AdminAiTasksPage() {
+  const { t } = useLocale();
   const [configs, setConfigs] = useState<ConfigWithModels[]>([]);
   const [models, setModels] = useState<AiModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,10 +120,10 @@ export default function AdminAiTasksPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">AI 任务配置</h1>
-        <p className="text-muted-foreground mt-1">
-          按任务类型配置首选/备用模型与参数
-        </p>
+        <p className="text-muted-foreground mt-1">{t("adminAi.tasksPageDesc")}</p>
       </div>
+
+      <AdminAiConfigHints />
 
       <PageSection
         title="任务路由"
@@ -150,7 +153,7 @@ export default function AdminAiTasksPage() {
                 {configs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                      暂无配置，请先在 Supabase 执行建表并插入默认任务类型
+                      {t("adminAi.tasksEmpty")}
                     </TableCell>
                   </TableRow>
                 ) : (
