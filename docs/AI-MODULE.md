@@ -56,11 +56,12 @@ DDL 参考：`sql/supabase-v0.4-health-records-ai-fields.sql`（字段名与后�
 
 ## 5. 现网行为（App Data Hub）
 
-- 上传：`POST /v1/ehf/health-records/upload`（multipart，≤20MB）
-- 处理：`POST /v1/ehf/health-records/{id}/process` — 当前多为 **占位管线**（状态置 `completed`、写入占位摘要），便于前端联调；后续可替换为真实 OCR/LLM Worker **不改前端主流程**
+- 上传：`POST /v1/ehf/health-records/upload`（multipart，≤20MB）— **已接通**
+- 处理：`POST /v1/ehf/health-records/{id}/process` — **仍为占位**（摘要含「占位解析」）；真实 OCR/LLM 需后端按 [`apidoc/EHF_AI_PROCESSING_BACKEND_REQUIREMENTS.md`](apidoc/EHF_AI_PROCESSING_BACKEND_REQUIREMENTS.md) 实现
 - 状态查询：`GET /v1/ehf/health-records/{id}/processing-status`
+- **不再使用** Supabase / Next `app/api/patient/*/process` 做生产解析
 
-接口细节：[`apidoc/EHF_API_REFERENCE.md`](apidoc/EHF_API_REFERENCE.md) §3～§5。
+接口细节：[`apidoc/EHF_API_REFERENCE.md`](apidoc/EHF_API_REFERENCE.md) §5。
 
 ## 6. 解析输出（structured_extract）
 

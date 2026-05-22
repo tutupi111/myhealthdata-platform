@@ -69,6 +69,16 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
       .catch(() => {});
   }, [recordId, record]);
 
+  const isPlaceholderAi =
+    record &&
+    record !== "loading" &&
+    typeof record === "object" &&
+    (record.ai_summary?.includes("占位解析") ||
+      record.ai_summary?.includes("占位") ||
+      (record.structured_data &&
+        Object.keys(record.structured_data).length <= 2 &&
+        "file_name" in (record.structured_data as object)));
+
   const isProcessing =
     record &&
     record !== "loading" &&
@@ -131,6 +141,13 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
       {pollError && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-2 text-sm text-amber-800 dark:text-amber-200">
           获取最新状态失败，正在自动重试…
+        </div>
+      )}
+
+      {isPlaceholderAi && !isProcessing && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          当前为服务端占位解析，尚未进行真实 OCR/AI 结构化。管理端配置的模型需后端按{" "}
+          <code className="text-xs">EHF_AI_PROCESSING_BACKEND_REQUIREMENTS</code> 接入后才会生效。
         </div>
       )}
 

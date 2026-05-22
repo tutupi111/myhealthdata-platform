@@ -509,9 +509,12 @@ PATCH /v1/ehf/admin/ai-task-configs/{config_id}
 
 ---
 
-## 5. P2 健康记录处理 / OCR-LLM 占位管线
+## 5. P2 健康记录处理 / OCR-LLM
 
-当前版本实现的是本地可测试的任务记录与状态流转。后端会把记录状态置为 `completed`，写入占位摘要、结构化字段和 AI 日志；后续可以把同一接口替换为真实 OCR/LLM worker。
+> **现状（2026-05-22）**：`POST .../process` 为 **占位实现**（摘要含「占位解析」）。  
+> **真实 OCR + 结构化**：见 [`EHF_AI_PROCESSING_BACKEND_REQUIREMENTS.md`](EHF_AI_PROCESSING_BACKEND_REQUIREMENTS.md)（后端开发清单）。前端已接线，无需改路径。
+
+占位时期行为：状态置 `completed`，写入占位摘要与最小 `structured_data`；管理端 `ai_models` 配置**尚未**被 process 读取。
 
 ### 5.1 上传健康记录
 

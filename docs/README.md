@@ -14,6 +14,7 @@
 | 自建服务器 / 目标架构 | [`apidoc/Server-Development-Requirements-v1.md`](apidoc/Server-Development-Requirements-v1.md) |
 | 在现有 App Data Hub 上落地 | [`apidoc/HERMES_BACKEND_IMPLEMENTATION_PLAN.md`](apidoc/HERMES_BACKEND_IMPLEMENTATION_PLAN.md) |
 | AI 上传与解析模块 | [`AI-MODULE.md`](AI-MODULE.md) |
+| **AI 处理后端需求（OCR/结构化）** | [`apidoc/EHF_AI_PROCESSING_BACKEND_REQUIREMENTS.md`](apidoc/EHF_AI_PROCESSING_BACKEND_REQUIREMENTS.md) |
 | 数据库 DDL 参考 | [`sql/`](sql/) |
 
 ## 目录结构
