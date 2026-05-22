@@ -4,23 +4,30 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ehfProcessHealthRecord, ehfUploadHealthRecord } from "@/lib/api/ehfClient";
-import { parseApiErrorMessage } from "@/lib/api/constants";
+import { parseApiErrorMessage, recordTypeCodes, recordTypeLabel } from "@/lib/api/constants";
+import { useLocale } from "@/context/LocaleContext";
 import { PageSection } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Upload, FileUp, Loader2 } from "lucide-react";
 
 const ACCEPT =
-  "image/jpeg,image/jpg,image/png,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  "image/jpeg,image/jpg,image/png,.pdf,.doc,.docx,.txt,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
 const MAX_MB = 20;
 
 type UploadMessage = { type: "success" | "error"; text: string } | null;
 
 export default function PatientUploadPage() {
   const router = useRouter();
+  const { t } = useLocale();
+  const up = t("upload");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [recordType, setRecordType] = useState("");
+  const [recordDate, setRecordDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<UploadMessage>(null);
 
@@ -42,9 +49,12 @@ export default function PatientUploadPage() {
     setSubmitting(true);
     setMessage(null);
     try {
-      const record = await ehfUploadHealthRecord(file);
-      setMessage({ type: "success", text: "上传成功，正在跳转到档案详情…" });
-      ehfProcessHealthRecord(record.id).catch(() => {});
+      const record = await ehfUploadHealthRecord(file, {
+        record_type: recordType || undefined,
+        record_date: recordDate || undefined,
+      });
+      setMessage({ type: "success", text: up.successRedirect });
+      await ehfProcessHealthRecord(record.id).catch(() => {});
       router.push(`/patient/records/${record.id}`);
     } catch (err) {
       setMessage({ type: "error", text: parseApiErrorMessage(err) });
@@ -58,10 +68,14 @@ export default function PatientUploadPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">上传资料</h1>
         <p className="text-muted-foreground mt-1">
-          上传病历、检查报告等健康资料，支持图片、Word、PDF，单文件不超过 {MAX_MB}MB
+          上传病历、检查报告等健康资料，支持图片、PDF、Word、TXT，单文件不超过 {MAX_MB}MB
         </p>
+        <p className="text-sm text-muted-foreground mt-2">{up.serverPipelineHint}</p>
       </div>
-      <PageSection title="选择文件" description="支持 JPG/PNG 图片、Word（.doc/.docx）、PDF">
+      <PageSection
+        title="选择文件"
+        description={`支持 JPG/PNG 图片、PDF、Word（.doc/.docx）、TXT。${up.supportsTxt}`}
+      >
         <form onSubmit={handleSubmit}>
           <Card>
             <CardHeader>
@@ -78,6 +92,33 @@ export default function PatientUploadPage() {
                   {message.text}
                 </p>
               ) : null}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="recordType">{up.recordType}</Label>
+                  <select
+                    id="recordType"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={recordType}
+                    onChange={(e) => setRecordType(e.target.value)}
+                  >
+                    <option value="">{up.recordTypePlaceholder}</option>
+                    {recordTypeCodes().map((code) => (
+                      <option key={code} value={code}>
+                        {recordTypeLabel(code)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="recordDate">{up.recordDate}</Label>
+                  <Input
+                    id="recordDate"
+                    type="date"
+                    value={recordDate}
+                    onChange={(e) => setRecordDate(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label>选择文件</Label>
                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-input bg-muted/30 px-6 py-10 text-center">
@@ -98,7 +139,7 @@ export default function PatientUploadPage() {
                     </>
                   ) : (
                     <p className="text-sm text-muted-foreground mb-1">
-                      支持 PDF、JPG、PNG、Word，单文件不超过 {MAX_MB}MB
+                      PDF、JPG、PNG、Word、TXT，最大 {MAX_MB}MB
                     </p>
                   )}
                   <Button
@@ -123,7 +164,7 @@ export default function PatientUploadPage() {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  上传中…
+                  {up.uploading}
                 </>
               ) : (
                 "提交上传"

@@ -10,8 +10,12 @@ import {
   fileTypeLabel,
   formatEhfDate,
   parseApiErrorMessage,
-  processingStatusLabel,
 } from "@/lib/api/constants";
+import { useLocale } from "@/context/LocaleContext";
+import {
+  getProcessingFailureKind,
+  getProcessingStatusLabel,
+} from "@/lib/healthRecord/processingDisplay";
 import { PageSection } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -173,10 +177,13 @@ export default function PatientRecordsPage() {
 }
 
 function RecordListItem({ record }: { record: HealthRecord }) {
-  const statusLabel = processingStatusLabel(record.processing_status);
+  const { t } = useLocale();
+  const rp = t("recordProcessing");
+  const statusLabel = getProcessingStatusLabel(record.processing_status, rp);
+  const failureKind = getProcessingFailureKind(record);
   const statusVariant =
     record.processing_status === "completed"
-      ? "success"
+      ? "default"
       : record.processing_status === "failed"
         ? "destructive"
         : "secondary";
@@ -201,6 +208,14 @@ function RecordListItem({ record }: { record: HealthRecord }) {
                   <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
                     {record.ai_summary}
                   </p>
+                )}
+                {failureKind === "structured_failed" && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 line-clamp-2">
+                    {rp.structuredFailed}
+                  </p>
+                )}
+                {failureKind === "ocr_failed" && (
+                  <p className="text-xs text-destructive mt-1 line-clamp-2">{rp.ocrFailed}</p>
                 )}
                 {record.tags && record.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">

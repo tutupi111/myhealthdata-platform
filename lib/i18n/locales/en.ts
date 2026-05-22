@@ -143,6 +143,34 @@ export const en: Messages = {
     newPassword: "New password",
     confirmPassword: "Confirm password",
   },
+  recordProcessing: {
+    statusUploaded: "Uploaded, pending recognition",
+    statusProcessing: "Recognizing & parsing",
+    statusCompleted: "Recognition complete",
+    statusFailed: "Recognition failed",
+    statusUnknown: "Processing",
+    parsingHint: "Server is running OCR and structured extraction; auto-refresh every ~3s",
+    ocrFailed:
+      "Could not extract readable text from this file. Try a clearer image or PDF.",
+    structuredFailed:
+      "Text was extracted, but AI structuring failed. Retry later or ask an admin to check the structured_extract model.",
+    extractedTextTitle: "Extracted text",
+    extractedTextDescription: "From server OCR / document parsing",
+    retryProcess: "Retry structuring",
+    retrying: "Re-processing…",
+    showExtractedText: "Show full text",
+    hideExtractedText: "Collapse",
+  },
+  upload: {
+    serverPipelineHint:
+      "After upload, the server runs OCR/document parsing and AI structuring—you do not need local OCR.",
+    supportsTxt: "Plain .txt is also supported",
+    recordType: "Record type",
+    recordTypePlaceholder: "Optional",
+    recordDate: "Record date",
+    successRedirect: "Uploaded. Recognizing on server, opening record…",
+    uploading: "Uploading & processing…",
+  },
   authGuard: {
     loading: "Loading…",
   },

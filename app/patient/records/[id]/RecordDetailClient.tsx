@@ -9,25 +9,39 @@ import {
 } from "@/lib/api/ehfClient";
 import type { HealthRecord } from "@/lib/api/ehfTypes";
 import {
+  StructuredDataView,
+  shouldUseStructuredDataView,
+} from "@/components/healthRecord/StructuredDataView";
+import { useLocale } from "@/context/LocaleContext";
+import {
   fileTypeLabel,
   formatEhfDate,
   parseApiErrorMessage,
-  processingStatusLabel,
 } from "@/lib/api/constants";
+import {
+  getProcessingFailureKind,
+  getProcessingStatusLabel,
+  hasExtractedText,
+  hasMeaningfulStructuredData,
+  isPlaceholderProcessing,
+} from "@/lib/healthRecord/processingDisplay";
 import { PageSection } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Loader2, ExternalLink } from "lucide-react";
+import { FileText, Loader2, ExternalLink, RefreshCw } from "lucide-react";
 
 interface RecordDetailClientProps {
   recordId: string;
 }
 
 export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
+  const { t } = useLocale();
+  const rp = t("recordProcessing");
   const [record, setRecord] = useState<HealthRecord | null | "loading">("loading");
   const [pollError, setPollError] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const processTriggeredRef = useRef(false);
   const mountedRef = useRef(true);
 
@@ -69,22 +83,24 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
       .catch(() => {});
   }, [recordId, record]);
 
-  const isPlaceholderAi =
-    record &&
-    record !== "loading" &&
-    typeof record === "object" &&
-    (record.ai_summary?.includes("占位解析") ||
-      record.ai_summary?.includes("占位") ||
-      (record.structured_data &&
-        Object.keys(record.structured_data).length <= 2 &&
-        "file_name" in (record.structured_data as object)));
-
   const isProcessing =
     record &&
     record !== "loading" &&
     typeof record === "object" &&
     (record.processing_status === "processing" ||
       record.processing_status === "uploaded");
+
+  const failureKind =
+    record && record !== "loading" && typeof record === "object"
+      ? getProcessingFailureKind(record)
+      : null;
+
+  const showPlaceholder =
+    record &&
+    record !== "loading" &&
+    typeof record === "object" &&
+    isPlaceholderProcessing(record) &&
+    !isProcessing;
 
   useEffect(() => {
     if (!recordId || !isProcessing) return;
@@ -103,6 +119,18 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
       await ehfOpenHealthRecordDownload(recordId);
     } catch (err) {
       setDownloadError(parseApiErrorMessage(err));
+    }
+  };
+
+  const handleRetryProcess = async () => {
+    setRetrying(true);
+    try {
+      const updated = await ehfProcessHealthRecord(recordId);
+      if (mountedRef.current) setRecord(updated);
+    } catch {
+      /* 保留当前记录，用户可看 processing_error */
+    } finally {
+      if (mountedRef.current) setRetrying(false);
     }
   };
 
@@ -125,6 +153,10 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
     );
   }
 
+  const statusLabel = getProcessingStatusLabel(record.processing_status, rp);
+  const showStructured =
+    hasMeaningfulStructuredData(record) && shouldUseStructuredDataView(record);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -135,7 +167,17 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
             {record.created_at && ` · ${formatEhfDate(record.created_at, true)}`}
           </p>
         </div>
-        <Badge variant="secondary">{processingStatusLabel(record.processing_status)}</Badge>
+        <Badge
+          variant={
+            record.processing_status === "completed"
+              ? "default"
+              : record.processing_status === "failed"
+                ? "destructive"
+                : "secondary"
+          }
+        >
+          {statusLabel}
+        </Badge>
       </div>
 
       {pollError && (
@@ -144,17 +186,52 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
         </div>
       )}
 
-      {isPlaceholderAi && !isProcessing && (
+      {showPlaceholder && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-          当前为服务端占位解析，尚未进行真实 OCR/AI 结构化。管理端配置的模型需后端按{" "}
-          <code className="text-xs">EHF_AI_PROCESSING_BACKEND_REQUIREMENTS</code> 接入后才会生效。
+          当前结果仍为旧版占位解析。请重新上传或点击「重新结构化」以使用服务器 OCR 流水线。
         </div>
       )}
 
       {isProcessing && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-4 py-3 text-sm text-blue-900 dark:text-blue-100">
           <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-          <span>正在解析资料，约每 3 秒自动更新</span>
+          <span>{rp.parsingHint}</span>
+        </div>
+      )}
+
+      {failureKind === "ocr_failed" && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {rp.ocrFailed}
+        </div>
+      )}
+
+      {failureKind === "structured_failed" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-900 dark:text-amber-100 space-y-3">
+          <p>{rp.structuredFailed}</p>
+          {record.processing_error && (
+            <p className="text-xs text-muted-foreground break-words">
+              {record.processing_error}
+            </p>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={retrying}
+            onClick={handleRetryProcess}
+          >
+            {retrying ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {rp.retrying}
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {rp.retryProcess}
+              </>
+            )}
+          </Button>
         </div>
       )}
 
@@ -182,24 +259,26 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
                 <dt className="text-muted-foreground mb-0.5">上传时间</dt>
                 <dd className="font-medium">{formatEhfDate(record.created_at, true)}</dd>
               </div>
-              {record.processing_error && (
-                <div>
-                  <dt className="text-muted-foreground mb-0.5">处理错误</dt>
-                  <dd className="font-medium text-destructive text-xs break-words">
-                    {record.processing_error}
-                  </dd>
-                </div>
-              )}
+              {record.processing_error &&
+                failureKind !== "structured_failed" &&
+                failureKind !== "ocr_failed" && (
+                  <div>
+                    <dt className="text-muted-foreground mb-0.5">处理错误</dt>
+                    <dd className="font-medium text-destructive text-xs break-words">
+                      {record.processing_error}
+                    </dd>
+                  </div>
+                )}
             </dl>
           </CardContent>
         </Card>
       </PageSection>
 
-      {record.ai_summary && (
-        <PageSection title="AI 摘要" description="自动生成的文档摘要">
+      {record.ai_summary && !isPlaceholderProcessing(record) && (
+        <PageSection title="AI 摘要" description="基于识别文字生成的医学摘要">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm">{record.ai_summary}</p>
+              <p className="text-sm whitespace-pre-wrap">{record.ai_summary}</p>
             </CardContent>
           </Card>
         </PageSection>
@@ -210,9 +289,9 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-wrap gap-2">
-                {record.tags.map((t) => (
-                  <Badge key={t} variant="secondary">
-                    {t}
+                {record.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary">
+                    {tag}
                   </Badge>
                 ))}
               </div>
@@ -221,13 +300,31 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
         </PageSection>
       )}
 
-      {record.structured_data && Object.keys(record.structured_data).length > 0 && (
-        <PageSection title="结构化数据">
+      {showStructured && record.structured_data && (
+        <PageSection title="结构化数据" description="检验指标与诊断等结构化字段">
           <Card>
             <CardContent className="pt-6">
-              <pre className="p-3 rounded-md bg-muted text-xs overflow-auto max-h-48">
-                {JSON.stringify(record.structured_data, null, 2)}
-              </pre>
+              <StructuredDataView data={record.structured_data} />
+            </CardContent>
+          </Card>
+        </PageSection>
+      )}
+
+      {hasExtractedText(record) && (
+        <PageSection
+          title={rp.extractedTextTitle}
+          description={rp.extractedTextDescription}
+        >
+          <Card>
+            <CardContent className="pt-6">
+              <details className="group">
+                <summary className="cursor-pointer text-sm font-medium text-primary hover:underline">
+                  {rp.showExtractedText}
+                </summary>
+                <pre className="mt-3 p-3 rounded-md bg-muted text-xs overflow-auto max-h-80 whitespace-pre-wrap">
+                  {record.extracted_text}
+                </pre>
+              </details>
             </CardContent>
           </Card>
         </PageSection>
@@ -253,10 +350,30 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
         </Card>
       </PageSection>
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button variant="outline" asChild>
           <Link href="/patient/records">返回健康档案</Link>
         </Button>
+        {record.processing_status === "failed" && (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={retrying}
+            onClick={handleRetryProcess}
+          >
+            {retrying ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {rp.retrying}
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {rp.retryProcess}
+              </>
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );

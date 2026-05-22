@@ -140,6 +140,33 @@ export const zh = {
     newPassword: "新密码",
     confirmPassword: "确认新密码",
   },
+  recordProcessing: {
+    statusUploaded: "已上传，待识别",
+    statusProcessing: "识别与解析中",
+    statusCompleted: "识别完成",
+    statusFailed: "识别失败",
+    statusUnknown: "处理中",
+    parsingHint: "服务器正在 OCR 并生成结构化结果，约每 3 秒自动更新",
+    ocrFailed: "未能从文件中识别到有效文字，请尝试上传更清晰的图片或 PDF。",
+    structuredFailed:
+      "已提取到文档文字，但 AI 结构化失败。请稍后重试或联系管理员检查 structured_extract 模型配置。",
+    extractedTextTitle: "原始识别文字",
+    extractedTextDescription: "由服务器 OCR/文档解析生成，供核对",
+    retryProcess: "重新结构化",
+    retrying: "正在重新处理…",
+    showExtractedText: "展开全文",
+    hideExtractedText: "收起",
+  },
+  upload: {
+    serverPipelineHint:
+      "文件上传至服务器后，由服务端完成 OCR/文档解析与 AI 结构化，无需在本机识别。",
+    supportsTxt: "另支持纯文本 .txt",
+    recordType: "资料类型",
+    recordTypePlaceholder: "请选择（可选）",
+    recordDate: "资料日期",
+    successRedirect: "上传成功，正在识别并跳转到档案详情…",
+    uploading: "上传并提交识别…",
+  },
   authGuard: {
     loading: "加载中...",
   },
