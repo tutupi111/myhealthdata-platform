@@ -28,6 +28,15 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldsLocked, setFieldsLocked] = useState(true);
+
+  /** 进入页面或切换三端入口时清空，避免浏览器自动填充上次账号 */
+  useEffect(() => {
+    setEmail("");
+    setPassword("");
+    setError("");
+    setFieldsLocked(true);
+  }, [roleParam]);
 
   const registered = searchParams.get("registered") === "1";
   const reset = searchParams.get("reset") === "1";
@@ -138,7 +147,23 @@ function LoginForm() {
             )}
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+              <input
+                type="text"
+                name="ehf_prevent_autofill_user"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
+                autoComplete="off"
+              />
+              <input
+                type="password"
+                name="ehf_prevent_autofill_pass"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
+                autoComplete="off"
+              />
               {reset && (
                 <p className="text-sm text-green-600 dark:text-green-400 text-center">
                   {t("forgotPassword.resetSuccess")}
@@ -156,26 +181,32 @@ function LoginForm() {
                 </Label>
                 <Input
                   id="email"
+                  name={isAdminLogin ? "ehf-admin-identifier" : "ehf-portal-email"}
                   type={isAdminLogin ? "text" : "email"}
                   placeholder={
                     isAdminLogin ? t("login.adminAccountPlaceholder") : t("login.emailPlaceholder")
                   }
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setFieldsLocked(false)}
+                  readOnly={fieldsLocked}
                   required
-                  autoComplete={isAdminLogin ? "username" : "email"}
+                  autoComplete="off"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{t("common.password")}</Label>
                 <Input
                   id="password"
+                  name="ehf-portal-password"
                   type="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setFieldsLocked(false)}
+                  readOnly={fieldsLocked}
                   required
-                  autoComplete="current-password"
+                  autoComplete="off"
                 />
               </div>
               {isAdminLogin && (
