@@ -2,37 +2,27 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { MOCK_PROFILE } from "@/lib/mock/patient";
+import { useAuth } from "@/context/AuthContext";
+import { ehfListHealthRecords } from "@/lib/api/ehfClient";
+import type { HealthRecord } from "@/lib/api/ehfTypes";
+import type { PatientProfile } from "@/lib/api/ehfTypes";
+import {
+  fileTypeLabel,
+  formatEhfDate,
+  parseApiErrorMessage,
+  processingStatusLabel,
+} from "@/lib/api/constants";
 import { PageSection } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Upload, Search, Loader2 } from "lucide-react";
-import type { ApiHealthRecord } from "@/lib/types/health-record";
-
-function fileTypeLabel(mime: string): string {
-  if (mime.startsWith("image/")) return "图片";
-  if (mime.includes("pdf")) return "PDF";
-  if (mime.includes("word") || mime.includes("document")) return "Word";
-  return mime || "文件";
-}
-
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 export default function PatientRecordsPage() {
-  const [records, setRecords] = useState<ApiHealthRecord[]>([]);
+  const { user } = useAuth();
+  const profile = user?.profile as PatientProfile | null;
+  const [records, setRecords] = useState<HealthRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -44,19 +34,11 @@ export default function PatientRecordsPage() {
       setLoading(true);
       setApiError(null);
       try {
-        const res = await fetch("/api/health-records");
-        if (cancelled) return;
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setApiError(data.error || "加载失败");
-          setRecords([]);
-          return;
-        }
-        const data = await res.json();
-        setRecords(data.records ?? []);
-      } catch (e) {
+        const data = await ehfListHealthRecords({ page_size: 200 });
+        if (!cancelled) setRecords(data.items ?? []);
+      } catch (err) {
         if (!cancelled) {
-          setApiError("网络错误，请稍后重试");
+          setApiError(parseApiErrorMessage(err));
           setRecords([]);
         }
       } finally {
@@ -82,10 +64,11 @@ export default function PatientRecordsPage() {
 
   const latestDate =
     records.length > 0
-      ? formatDate(
-          records.reduce((a, r) =>
-            r.created_at > a ? r.created_at : a
-          , records[0].created_at)
+      ? formatEhfDate(
+          records.reduce(
+            (a, r) => (r.created_at > a ? r.created_at : a),
+            records[0].created_at
+          )
         )
       : null;
 
@@ -98,9 +81,7 @@ export default function PatientRecordsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">健康档案</h1>
-        <p className="text-muted-foreground mt-1">
-          查看与管理您上传的健康资料
-        </p>
+        <p className="text-muted-foreground mt-1">查看与管理您上传的健康资料</p>
       </div>
 
       <PageSection title="档案摘要" description="当前档案概览">
@@ -109,7 +90,7 @@ export default function PatientRecordsPage() {
             <dl className="grid gap-4 sm:grid-cols-3 text-sm">
               <div>
                 <dt className="text-muted-foreground">疾病类型</dt>
-                <dd className="font-medium mt-0.5">{MOCK_PROFILE.diseaseType}</dd>
+                <dd className="font-medium mt-0.5">{profile?.disease_type ?? "—"}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">资料总数</dt>
@@ -137,9 +118,7 @@ export default function PatientRecordsPage() {
         }
       >
         <div className="space-y-4">
-          {apiError && (
-            <p className="text-sm text-destructive">{apiError}</p>
-          )}
+          {apiError && <p className="text-sm text-destructive">{apiError}</p>}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -183,9 +162,7 @@ export default function PatientRecordsPage() {
                   </Card>
                 </li>
               ) : (
-                filtered.map((record) => (
-                  <RecordListItem key={record.id} record={record} />
-                ))
+                filtered.map((record) => <RecordListItem key={record.id} record={record} />)
               )}
             </ul>
           )}
@@ -195,15 +172,8 @@ export default function PatientRecordsPage() {
   );
 }
 
-function RecordListItem({ record }: { record: ApiHealthRecord }) {
-  const statusLabel =
-    record.processing_status === "uploaded"
-      ? "已上传"
-      : record.processing_status === "completed"
-        ? "已完成"
-        : record.processing_status === "failed"
-          ? "失败"
-          : "处理中";
+function RecordListItem({ record }: { record: HealthRecord }) {
+  const statusLabel = processingStatusLabel(record.processing_status);
   const statusVariant =
     record.processing_status === "completed"
       ? "success"
@@ -225,7 +195,7 @@ function RecordListItem({ record }: { record: ApiHealthRecord }) {
                 <p className="text-sm text-muted-foreground">
                   {fileTypeLabel(record.file_type)}
                   {record.doc_type && record.doc_type !== "unknown" && ` · ${record.doc_type}`}
-                  {record.created_at && ` · ${formatDate(record.created_at)}`}
+                  {record.created_at && ` · ${formatEhfDate(record.created_at)}`}
                 </p>
                 {record.ai_summary && (
                   <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
@@ -239,9 +209,6 @@ function RecordListItem({ record }: { record: ApiHealthRecord }) {
                         {t}
                       </Badge>
                     ))}
-                    {record.tags.length > 4 && (
-                      <span className="text-xs text-muted-foreground">+{record.tags.length - 4}</span>
-                    )}
                   </div>
                 )}
               </div>

@@ -1,17 +1,9 @@
-import { RoleLayoutShell } from "@/components/layout";
-import { AuthGuard } from "@/components/auth/AuthGuard";
-import { adminNavItems } from "@/config/navigation";
+import { LocalizedRoleLayout } from "@/components/layout/LocalizedRoleLayout";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <AuthGuard role="admin">
-      <RoleLayoutShell role="admin" navItems={adminNavItems} title="管理后台">
-        {children}
-      </RoleLayoutShell>
-    </AuthGuard>
-  );
+  return <LocalizedRoleLayout role="admin">{children}</LocalizedRoleLayout>;
 }

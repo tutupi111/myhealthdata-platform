@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import type { AppRole } from "@/lib/mock/auth";
+import { useLocale } from "@/context/LocaleContext";
+import type { AppRole } from "@/types/layout";
 
 const DASHBOARD_BY_ROLE: Record<AppRole, string> = {
   patient: "/patient/dashboard",
@@ -18,6 +19,7 @@ interface AuthGuardProps {
 
 export function AuthGuard({ role, children }: AuthGuardProps) {
   const { user, hasChecked } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -37,7 +39,7 @@ export function AuthGuard({ role, children }: AuthGuardProps) {
   if (!hasChecked) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">加载中...</p>
+        <p className="text-muted-foreground">{t("authGuard.loading")}</p>
       </div>
     );
   }

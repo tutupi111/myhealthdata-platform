@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useLocale } from "@/context/LocaleContext";
 import type { NavItem } from "@/types/layout";
 import { LogOut } from "lucide-react";
 
@@ -29,6 +30,7 @@ export function AppSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
+  const { t } = useLocale();
 
   const handleLogout = () => {
     logout();
@@ -77,20 +79,20 @@ export function AppSidebar({
         })}
       </nav>
       <div className="border-t border-sidebar-border p-2 space-y-1">
-        <Link
-          href="/"
-          onClick={onNavigate}
-          className="flex items-center rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
         >
-          返回首页
-        </Link>
+          {t("common.backHome")}
+        </button>
         <button
           type="button"
           onClick={handleLogout}
           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
         >
           <LogOut className="h-4 w-4" />
-          退出登录
+          {t("common.logout")}
         </button>
       </div>
     </aside>

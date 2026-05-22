@@ -2,72 +2,32 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import {
+  ehfGetHealthRecord,
+  ehfOpenHealthRecordDownload,
+  ehfProcessHealthRecord,
+} from "@/lib/api/ehfClient";
+import type { HealthRecord } from "@/lib/api/ehfTypes";
+import {
+  fileTypeLabel,
+  formatEhfDate,
+  parseApiErrorMessage,
+  processingStatusLabel,
+} from "@/lib/api/constants";
 import { PageSection } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Loader2, ExternalLink } from "lucide-react";
-import type { ApiHealthRecord } from "@/lib/types/health-record";
-
-const API_BASE = "/api/patient/records";
-
-function fileTypeLabel(mime: string): string {
-  if (mime.startsWith("image/")) return "图片";
-  if (mime.includes("pdf")) return "PDF";
-  if (mime.includes("word") || mime.includes("document")) return "Word";
-  return mime || "文件";
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function processingStatusLabel(s: string): string {
-  if (s === "uploaded") return "已上传";
-  if (s === "processing") return "解析中";
-  if (s === "completed") return "已完成";
-  if (s === "failed") return "失败";
-  return "处理中";
-}
-
-/**
- * 拉取单条 record。内部 try/catch，失败时返回 null，不 throw。
- */
-async function fetchRecord(recordId: string): Promise<ApiHealthRecord | null> {
-  try {
-    const url = `${API_BASE}/${recordId}?_t=${Date.now()}`;
-    const res = await fetch(url, { method: "GET", cache: "no-store" });
-
-    if (!res.ok) {
-      console.warn("[record fetch failed]", res.status, recordId);
-      return null;
-    }
-
-    const data = await res.json();
-    return data as ApiHealthRecord;
-  } catch (error) {
-    console.warn("[record fetch exception]", error);
-    return null;
-  }
-}
 
 interface RecordDetailClientProps {
   recordId: string;
 }
 
 export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
-  const [record, setRecord] = useState<ApiHealthRecord | null | "loading">("loading");
+  const [record, setRecord] = useState<HealthRecord | null | "loading">("loading");
   const [pollError, setPollError] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const processTriggeredRef = useRef(false);
   const mountedRef = useRef(true);
 
@@ -79,10 +39,14 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
   }, []);
 
   const load = useCallback(async () => {
-    const data = await fetchRecord(recordId);
-    if (!mountedRef.current) return;
-    setRecord(data);
-    return data;
+    try {
+      const data = await ehfGetHealthRecord(recordId);
+      if (mountedRef.current) setRecord(data);
+      return data;
+    } catch {
+      if (mountedRef.current) setRecord(null);
+      return null;
+    }
   }, [recordId]);
 
   useEffect(() => {
@@ -92,59 +56,45 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
   useEffect(() => {
     if (!record || record === "loading" || typeof record !== "object") return;
     const shouldTrigger =
-      record.processing_status === "uploaded" && !processTriggeredRef.current;
-    if (shouldTrigger) {
-      processTriggeredRef.current = true;
-      console.log("[detail trigger process]", { recordId });
+      (record.processing_status === "uploaded" ||
+        record.processing_status === "processing") &&
+      !processTriggeredRef.current;
+    if (!shouldTrigger) return;
 
-      (async () => {
-        try {
-          const res = await fetch(`/api/patient/records/${recordId}/process`, {
-            method: "POST",
-          });
-          const payload = await res.json().catch(() => ({}));
-          console.log("[detail process response]", payload);
-
-          if (payload?.record && mountedRef.current) {
-            console.log("[detail setRecord from process]", {
-              status: payload.record.processing_status,
-              updated_at: payload.record.updated_at,
-            });
-            setRecord(payload.record);
-          }
-        } catch (e) {
-          if (mountedRef.current) {
-            console.warn("[detail process request error]", e);
-          }
-        }
-      })();
-    }
+    processTriggeredRef.current = true;
+    ehfProcessHealthRecord(recordId)
+      .then((updated) => {
+        if (mountedRef.current) setRecord(updated);
+      })
+      .catch(() => {});
   }, [recordId, record]);
 
   const isProcessing =
     record &&
     record !== "loading" &&
     typeof record === "object" &&
-    (record.processing_status === "processing" || record.processing_status === "uploaded");
+    (record.processing_status === "processing" ||
+      record.processing_status === "uploaded");
 
   useEffect(() => {
     if (!recordId || !isProcessing) return;
-
-    const timer = setInterval(async () => {
-      const data = await fetchRecord(recordId);
-
-      if (!mountedRef.current) return;
-
-      if (data) {
-        setPollError(false);
-        setRecord(data);
-      } else {
-        setPollError(true);
-      }
+    const timer = setInterval(() => {
+      load().then((data) => {
+        if (data) setPollError(false);
+        else setPollError(true);
+      });
     }, 3000);
-
     return () => clearInterval(timer);
-  }, [recordId, isProcessing]);
+  }, [recordId, isProcessing, load]);
+
+  const handleDownload = async () => {
+    setDownloadError(null);
+    try {
+      await ehfOpenHealthRecordDownload(recordId);
+    } catch (err) {
+      setDownloadError(parseApiErrorMessage(err));
+    }
+  };
 
   if (record === "loading") {
     return (
@@ -172,7 +122,7 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
           <h1 className="text-2xl font-semibold tracking-tight">{record.file_name}</h1>
           <p className="text-muted-foreground mt-1">
             {fileTypeLabel(record.file_type)}
-            {record.created_at && ` · ${formatDate(record.created_at)}`}
+            {record.created_at && ` · ${formatEhfDate(record.created_at, true)}`}
           </p>
         </div>
         <Badge variant="secondary">{processingStatusLabel(record.processing_status)}</Badge>
@@ -200,11 +150,7 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
                 <dd className="font-medium">{record.file_name}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground mb-0.5">文件类型</dt>
-                <dd className="font-medium">{fileTypeLabel(record.file_type)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground mb-0.5">文档类型（AI）</dt>
+                <dt className="text-muted-foreground mb-0.5">文档类型</dt>
                 <dd className="font-medium">{record.doc_type ?? "—"}</dd>
               </div>
               <div>
@@ -217,11 +163,7 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
               </div>
               <div>
                 <dt className="text-muted-foreground mb-0.5">上传时间</dt>
-                <dd className="font-medium">{formatDate(record.created_at)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground mb-0.5">处理状态</dt>
-                <dd className="font-medium">{processingStatusLabel(record.processing_status)}</dd>
+                <dd className="font-medium">{formatEhfDate(record.created_at, true)}</dd>
               </div>
               {record.processing_error && (
                 <div>
@@ -247,7 +189,7 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
       )}
 
       {record.tags && record.tags.length > 0 && (
-        <PageSection title="标签" description="AI 生成的标签">
+        <PageSection title="标签">
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-wrap gap-2">
@@ -263,24 +205,10 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
       )}
 
       {record.structured_data && Object.keys(record.structured_data).length > 0 && (
-        <PageSection title="结构化数据" description="AI 解析出的结构化字段">
+        <PageSection title="结构化数据">
           <Card>
             <CardContent className="pt-6">
-              <dl className="grid gap-2 text-sm">
-                {Object.entries(record.structured_data).map(([key, value]) => (
-                  <div key={key}>
-                    <dt className="text-muted-foreground capitalize">{key}</dt>
-                    <dd className="font-medium mt-0.5">
-                      {Array.isArray(value)
-                        ? value.join(", ") || "—"
-                        : value !== null && value !== undefined && value !== ""
-                          ? String(value)
-                          : "—"}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <pre className="mt-4 p-3 rounded-md bg-muted text-xs overflow-auto max-h-48">
+              <pre className="p-3 rounded-md bg-muted text-xs overflow-auto max-h-48">
                 {JSON.stringify(record.structured_data, null, 2)}
               </pre>
             </CardContent>
@@ -295,17 +223,13 @@ export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
               <FileText className="h-10 w-10 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="font-medium truncate">{record.file_name}</p>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {fileTypeLabel(record.file_type)}
-                  {record.file_size != null &&
-                    ` · ${(record.file_size / 1024).toFixed(1)} KB`}
-                </p>
+                {downloadError && (
+                  <p className="text-sm text-destructive mt-1">{downloadError}</p>
+                )}
               </div>
-              <Button variant="outline" size="sm" asChild>
-                <a href={record.file_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  打开
-                </a>
+              <Button variant="outline" size="sm" type="button" onClick={handleDownload}>
+                <ExternalLink className="h-4 w-4 mr-1" />
+                打开
               </Button>
             </div>
           </CardContent>

@@ -18,15 +18,15 @@ import {
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Pencil, Loader2, Check } from "lucide-react";
 import {
-  AI_TASK_TYPES,
-  TASK_TYPE_LABELS,
   type AiTaskConfig,
   type AiModel,
-  type TaskType,
-} from "@/lib/types/ai-config";
-
-const CONFIGS_API = "/api/admin/ai-task-configs";
-const MODELS_API = "/api/admin/ai-models";
+} from "@/lib/api/ehfTypes";
+import {
+  ehfAdminListAiModels,
+  ehfAdminListAiTaskConfigs,
+  ehfAdminUpdateAiTaskConfig,
+} from "@/lib/api/ehfClient";
+import { TASK_TYPE_LABELS, parseApiErrorMessage } from "@/lib/api/constants";
 
 type ConfigWithModels = Omit<AiTaskConfig, "preferred_model" | "fallback_model"> & {
   preferred_model?: { id: string; model_name: string } | null;
@@ -54,18 +54,17 @@ export default function AdminAiTasksPage() {
     setLoading(true);
     setError(null);
     try {
-      const [configRes, modelRes] = await Promise.all([
-        fetch(CONFIGS_API),
-        fetch(MODELS_API),
+      const [configData, modelData] = await Promise.all([
+        ehfAdminListAiTaskConfigs(),
+        ehfAdminListAiModels({ page_size: 100 }),
       ]);
-      const configData = await configRes.json();
-      const modelData = await modelRes.json();
-      if (!configRes.ok) throw new Error(configData.error || "加载任务配置失败");
-      if (!modelRes.ok) throw new Error(modelData.error || "加载模型列表失败");
-      setConfigs(configData.configs ?? []);
-      setModels(modelData.models ?? []);
+      const configsList = Array.isArray(configData)
+        ? configData
+        : (configData.items ?? (configData as { configs?: ConfigWithModels[] }).configs ?? []);
+      setConfigs(configsList as ConfigWithModels[]);
+      setModels(modelData.items ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "加载失败");
+      setError(parseApiErrorMessage(e));
       setConfigs([]);
       setModels([]);
     } finally {
@@ -83,9 +82,9 @@ export default function AdminAiTasksPage() {
       preferred_model_id: c.preferred_model_id ?? "",
       fallback_model_id: c.fallback_model_id ?? "",
       prompt_template: c.prompt_template ?? "",
-      timeout: c.timeout,
-      max_tokens: c.max_tokens,
-      is_enabled: c.is_enabled,
+      timeout: c.timeout ?? 60,
+      max_tokens: c.max_tokens ?? 4096,
+      is_enabled: c.is_enabled ?? true,
     });
     setSheetOpen(true);
   };
@@ -95,24 +94,18 @@ export default function AdminAiTasksPage() {
     if (!editingConfig) return;
     setSaving(true);
     try {
-      const res = await fetch(CONFIGS_API + "/" + editingConfig.id, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          preferred_model_id: form.preferred_model_id || null,
-          fallback_model_id: form.fallback_model_id || null,
-          prompt_template: form.prompt_template.trim() || null,
-          timeout: form.timeout,
-          max_tokens: form.max_tokens,
-          is_enabled: form.is_enabled,
-        }),
+      await ehfAdminUpdateAiTaskConfig(editingConfig.id, {
+        preferred_model_id: form.preferred_model_id || null,
+        fallback_model_id: form.fallback_model_id || null,
+        prompt_template: form.prompt_template.trim() || null,
+        timeout: form.timeout,
+        max_tokens: form.max_tokens,
+        is_enabled: form.is_enabled,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "保存失败");
       setSheetOpen(false);
       fetchData();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "保存失败");
+      alert(parseApiErrorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -164,7 +157,7 @@ export default function AdminAiTasksPage() {
                   configs.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">
-                        {TASK_TYPE_LABELS[c.task_type as TaskType] ?? c.task_type}
+                        {TASK_TYPE_LABELS[c.task_type] ?? c.task_type}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {c.preferred_model?.model_name ?? "—"}
@@ -200,7 +193,7 @@ export default function AdminAiTasksPage() {
           {editingConfig && (
             <div className="p-4 space-y-4">
               <h2 className="text-lg font-semibold">
-                {TASK_TYPE_LABELS[editingConfig.task_type as TaskType] ?? editingConfig.task_type}
+                {TASK_TYPE_LABELS[editingConfig.task_type] ?? editingConfig.task_type}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>

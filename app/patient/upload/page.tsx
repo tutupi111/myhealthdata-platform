@@ -3,6 +3,8 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ehfProcessHealthRecord, ehfUploadHealthRecord } from "@/lib/api/ehfClient";
+import { parseApiErrorMessage } from "@/lib/api/constants";
 import { PageSection } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,8 +25,7 @@ export default function PatientUploadPage() {
   const [message, setMessage] = useState<UploadMessage>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    setFile(f ?? null);
+    setFile(e.target.files?.[0] ?? null);
     setMessage(null);
   };
 
@@ -35,33 +36,18 @@ export default function PatientUploadPage() {
       return;
     }
     if (file.size > MAX_MB * 1024 * 1024) {
-      setMessage({ type: "error", text: "文件大小不能超过 " + MAX_MB + "MB" });
+      setMessage({ type: "error", text: `文件大小不能超过 ${MAX_MB}MB` });
       return;
     }
     setSubmitting(true);
     setMessage(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/patient/upload", { method: "POST", body: formData });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage({ type: "error", text: (data && data.error) || "上传失败" });
-        return;
-      }
-      const recordId = data?.record?.id;
+      const record = await ehfUploadHealthRecord(file);
       setMessage({ type: "success", text: "上传成功，正在跳转到档案详情…" });
-      if (recordId) {
-        fetch(`/api/patient/records/${recordId}/process`, { method: "POST" }).catch(() => {});
-        router.push(`/patient/records/${recordId}`);
-      } else {
-        setTimeout(() => router.push("/patient/records"), 800);
-      }
+      ehfProcessHealthRecord(record.id).catch(() => {});
+      router.push(`/patient/records/${record.id}`);
     } catch (err) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "网络错误，请稍后重试",
-      });
+      setMessage({ type: "error", text: parseApiErrorMessage(err) });
     } finally {
       setSubmitting(false);
     }
@@ -83,7 +69,12 @@ export default function PatientUploadPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {message ? (
-                <p className={"text-sm " + (message.type === "success" ? "text-green-600" : "text-destructive")}>
+                <p
+                  className={
+                    "text-sm " +
+                    (message.type === "success" ? "text-green-600" : "text-destructive")
+                  }
+                >
                   {message.text}
                 </p>
               ) : null}

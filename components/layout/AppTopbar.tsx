@@ -2,6 +2,7 @@
 
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/context/LocaleContext";
 
 export interface AppTopbarProps {
   title: string;
@@ -13,6 +14,8 @@ export interface AppTopbarProps {
 }
 
 export function AppTopbar({ title, rightSlot, onMenuClick, className }: AppTopbarProps) {
+  const { t } = useLocale();
+
   return (
     <header
       className={cn(
@@ -25,7 +28,7 @@ export function AppTopbar({ title, rightSlot, onMenuClick, className }: AppTopba
           type="button"
           onClick={onMenuClick}
           className="flex h-9 w-9 items-center justify-center rounded-md md:hidden hover:bg-accent hover:text-accent-foreground"
-          aria-label="打开菜单"
+          aria-label={t("common.openMenu")}
         >
           <Menu className="h-5 w-5" />
         </button>

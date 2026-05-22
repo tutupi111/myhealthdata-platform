@@ -1,39 +1,70 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useLocale } from "@/context/LocaleContext";
+import { AuthPageFrame } from "@/components/layout/AuthPageFrame";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { AppRole } from "@/types/layout";
 
-const DASHBOARD_BY_ROLE = {
+const DASHBOARD_BY_ROLE: Record<AppRole, string> = {
   patient: "/patient/dashboard",
   researcher: "/researcher/dashboard",
   admin: "/admin/dashboard",
-} as const;
+};
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, hasChecked, login } = useAuth();
+  const { user, hasChecked, login, logout } = useAuth();
+  const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const registered = searchParams.get("registered") === "1";
+  const reset = searchParams.get("reset") === "1";
+  const redirect = searchParams.get("redirect");
+  const roleParam = searchParams.get("role");
+  const isAdminLogin = roleParam === "admin";
+  const isPortalLogin =
+    roleParam === "patient" || roleParam === "researcher" || roleParam === "admin";
+  const roleHint = isPortalLogin ? t(`roles.${roleParam}`) : null;
+  const hasProtectedRedirect = Boolean(redirect && redirect.startsWith("/"));
 
-  // Already logged in: always redirect to current user's role dashboard
+  useEffect(() => {
+    if (!hasChecked || !user || !isPortalLogin || hasProtectedRedirect) return;
+    logout();
+  }, [hasChecked, user, isPortalLogin, hasProtectedRedirect, logout]);
+
   if (hasChecked && user) {
-    const to = DASHBOARD_BY_ROLE[user.role];
+    if (isPortalLogin && !hasProtectedRedirect) {
+      return (
+        <AuthPageFrame>
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <p className="text-muted-foreground">{t("common.switchingLogin")}</p>
+          </div>
+        </AuthPageFrame>
+      );
+    }
+
+    const to = hasProtectedRedirect
+      ? decodeURIComponent(redirect!)
+      : DASHBOARD_BY_ROLE[user.role];
     router.replace(to);
     return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <p className="text-muted-foreground">正在跳转...</p>
-      </div>
+      <AuthPageFrame>
+        <div className="flex min-h-screen items-center justify-center p-4">
+          <p className="text-muted-foreground">{t("common.redirecting")}</p>
+        </div>
+      </AuthPageFrame>
     );
   }
 
@@ -41,82 +72,137 @@ function LoginForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = login(email, password);
+    const result = await login(email, password, {
+      role: isPortalLogin ? (roleParam as AppRole) : undefined,
+    });
     setLoading(false);
     if (result.ok) {
-      // Always go to dashboard of the logged-in user's role
-      const to = DASHBOARD_BY_ROLE[result.user.role];
+      const to =
+        redirect && redirect.startsWith("/")
+          ? decodeURIComponent(redirect)
+          : DASHBOARD_BY_ROLE[result.user.role];
       router.push(to);
       return;
     }
-    setError(result.error ?? "登录失败");
+    setError(result.error ?? t("common.loginFailed"));
   };
 
+  const registerHref = isPortalLogin && !isAdminLogin ? `/register?role=${roleParam}` : "/register";
+
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-muted/30">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl">登录</CardTitle>
-          <CardDescription>使用邮箱和密码登录 EHF 患者数据钱包</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {registered && (
-              <p className="text-sm text-green-600 dark:text-green-400 text-center">注册成功，请登录</p>
-            )}
-            {error && (
-              <p className="text-sm text-destructive text-center">{error}</p>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
+    <AuthPageFrame>
+      <div className="flex min-h-screen items-center justify-center p-4 bg-muted/30">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <div className="mb-2 text-left">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="-ml-2 gap-1"
+                type="button"
+                onClick={() => {
+                  logout();
+                  router.push("/");
+                }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                {t("common.backToRoleSelect")}
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "登录中..." : "登录"}
-            </Button>
-          </form>
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            还没有账号？{" "}
-            <Link href="/register" className="text-primary underline-offset-4 hover:underline">
-              注册
-            </Link>
-          </p>
-          <p className="text-center text-xs text-muted-foreground mt-2">
-            演示账号：patient@example.com / researcher@example.com / admin@example.com，密码均为 password
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+            <CardTitle className="text-2xl">{t("login.title")}</CardTitle>
+            <CardDescription>
+              {roleHint
+                ? t("login.descriptionWithRole", { role: roleHint })
+                : t("login.description")}
+            </CardDescription>
+            {isAdminLogin && (
+              <p className="text-xs text-muted-foreground pt-1">{t("login.adminLoginHint")}</p>
+            )}
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {reset && (
+                <p className="text-sm text-green-600 dark:text-green-400 text-center">
+                  {t("forgotPassword.resetSuccess")}
+                </p>
+              )}
+              {registered && (
+                <p className="text-sm text-green-600 dark:text-green-400 text-center">
+                  {t("login.registeredSuccess")}
+                </p>
+              )}
+              {error && <p className="text-sm text-destructive text-center">{error}</p>}
+              <div className="space-y-2">
+                <Label htmlFor="email">
+                  {isAdminLogin ? t("common.account") : t("common.email")}
+                </Label>
+                <Input
+                  id="email"
+                  type={isAdminLogin ? "text" : "email"}
+                  placeholder={
+                    isAdminLogin ? t("login.adminAccountPlaceholder") : t("login.emailPlaceholder")
+                  }
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete={isAdminLogin ? "username" : "email"}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">{t("common.password")}</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+              {isAdminLogin && (
+                <div className="text-right">
+                  <Link
+                    href="/forgot-password?role=admin"
+                    className="text-sm text-primary underline-offset-4 hover:underline"
+                  >
+                    {t("login.forgotPassword")}
+                  </Link>
+                </div>
+              )}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? t("common.loggingIn") : t("common.login")}
+              </Button>
+            </form>
+            {!isAdminLogin && (
+              <p className="text-center text-sm text-muted-foreground mt-4">
+                {t("common.noAccount")}{" "}
+                <Link href={registerHref} className="text-primary underline-offset-4 hover:underline">
+                  {t("common.register")}
+                </Link>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AuthPageFrame>
+  );
+}
+
+function LoginPageFallback() {
+  const { t } = useLocale();
+  return (
+    <AuthPageFrame>
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <p className="text-muted-foreground">{t("common.loading")}</p>
+      </div>
+    </AuthPageFrame>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <p className="text-muted-foreground">加载中...</p>
-      </div>
-    }>
+    <Suspense fallback={<LoginPageFallback />}>
       <LoginForm />
     </Suspense>
   );

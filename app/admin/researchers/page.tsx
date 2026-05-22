@@ -1,6 +1,13 @@
 "use client";
 
-import { MOCK_ADMIN_RESEARCHERS } from "@/lib/mock/admin";
+import { useEffect, useState } from "react";
+import {
+  ehfAdminApproveResearcher,
+  ehfAdminListResearchers,
+  ehfAdminRejectResearcher,
+} from "@/lib/api/ehfClient";
+import type { AdminResearcher } from "@/lib/api/ehfTypes";
+import { formatEhfDate, parseApiErrorMessage } from "@/lib/api/constants";
 import { PageSection } from "@/components/layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,115 +20,135 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
 
-function statusVariant(
-  status: "active" | "pending" | "disabled"
-): "success" | "warning" | "secondary" {
-  if (status === "active") return "success";
-  if (status === "pending") return "warning";
-  return "secondary";
-}
-
-function statusLabel(status: "active" | "pending" | "disabled"): string {
-  if (status === "active") return "正常";
-  if (status === "pending") return "待激活";
-  return "已禁用";
-}
-
-function reviewVariant(
-  review: "pending" | "approved" | "rejected"
-): "warning" | "success" | "destructive" {
+function reviewVariant(review: string): "warning" | "success" | "destructive" {
   if (review === "approved") return "success";
   if (review === "rejected") return "destructive";
   return "warning";
 }
 
-function reviewLabel(review: "pending" | "approved" | "rejected"): string {
+function reviewLabel(review: string): string {
   if (review === "approved") return "已通过";
   if (review === "rejected") return "已驳回";
   return "待审核";
 }
 
 export default function AdminResearchersPage() {
-  const handleApprove = (id: string) => {
-    // Mock: no API
-    console.log("approve", id);
+  const [researchers, setResearchers] = useState<AdminResearcher[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await ehfAdminListResearchers({ page_size: 100 });
+      setResearchers(data.items ?? []);
+    } catch (err) {
+      setError(parseApiErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
-  const handleReject = (id: string) => {
-    // Mock: no API
-    console.log("reject", id);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleApprove = async (id: string) => {
+    setActingId(id);
+    try {
+      await ehfAdminApproveResearcher(id);
+      await load();
+    } catch (err) {
+      setError(parseApiErrorMessage(err));
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    setActingId(id);
+    try {
+      await ehfAdminRejectResearcher(id);
+      await load();
+    } catch (err) {
+      setError(parseApiErrorMessage(err));
+    } finally {
+      setActingId(null);
+    }
   };
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">研究者管理</h1>
-        <p className="text-muted-foreground mt-1">
-          研究者账号与审核状态
-        </p>
+        <p className="text-muted-foreground mt-1">研究者账号与审核状态</p>
       </div>
 
-      <PageSection
-        title="研究者列表"
-        description={`共 ${MOCK_ADMIN_RESEARCHERS.length} 名研究者`}
-      >
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>姓名</TableHead>
-                <TableHead>机构</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>审核状态</TableHead>
-                <TableHead>注册时间</TableHead>
-                <TableHead className="w-[140px]">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {MOCK_ADMIN_RESEARCHERS.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.fullName}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {r.organization}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(r.status)}>
-                      {statusLabel(r.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={reviewVariant(r.reviewStatus)}>
-                      {reviewLabel(r.reviewStatus)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {r.registeredAt}
-                  </TableCell>
-                  <TableCell>
-                    {r.reviewStatus === "pending" && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => handleApprove(r.id)}
-                        >
-                          通过
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleReject(r.id)}
-                        >
-                          驳回
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <PageSection title="研究者列表" description={`共 ${researchers.length} 名研究者`}>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>姓名</TableHead>
+                  <TableHead>机构</TableHead>
+                  <TableHead>审核状态</TableHead>
+                  <TableHead>注册时间</TableHead>
+                  <TableHead className="w-[140px]">操作</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+              </TableHeader>
+              <TableBody>
+                {researchers.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium">{r.full_name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {r.organization_name}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={reviewVariant(r.review_status)}>
+                        {reviewLabel(r.review_status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {formatEhfDate(r.registered_at ?? r.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      {r.review_status === "pending" && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={actingId === r.id}
+                            onClick={() => handleApprove(r.id)}
+                          >
+                            通过
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={actingId === r.id}
+                            onClick={() => handleReject(r.id)}
+                          >
+                            驳回
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
       </PageSection>
     </div>
   );

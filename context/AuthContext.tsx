@@ -1,108 +1,126 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import {
-  AUTH_STORAGE_KEY,
-  findMockUser,
-  type AppRole,
-  type StoredAuth,
-} from "@/lib/mock/auth";
+  ehfGetMe,
+  ehfLogin,
+  setAccessToken,
+  getAccessToken,
+  type EhfRole,
+} from "@/lib/api/ehfClient";
+import type { AdminProfile, PatientProfile, ResearcherProfile } from "@/lib/api/ehfTypes";
+import { adminEmailToUsername, normalizeLoginIdentifier } from "@/lib/auth/adminAccount";
+import { parseApiErrorMessage } from "@/lib/api/constants";
+
+export type { EhfRole as AppRole };
 
 interface AuthUser {
+  id: string;
   email: string;
-  role: AppRole;
+  role: EhfRole;
   displayName: string;
+  profile: PatientProfile | ResearcherProfile | AdminProfile | null;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   hasChecked: boolean;
-  login: (email: string, password: string) =>
-    | { ok: true; user: AuthUser }
-    | { ok: false; error: string };
+  login: (
+    identifier: string,
+    password: string,
+    options?: { role?: EhfRole }
+  ) => Promise<{ ok: true; user: AuthUser } | { ok: false; error: string }>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const VALID_ROLES: AppRole[] = ["patient", "researcher", "admin"];
-function isValidRole(r: unknown): r is AppRole {
-  return typeof r === "string" && VALID_ROLES.includes(r as AppRole);
-}
-
-function loadStoredAuth(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredAuth;
-    if (parsed?.email && parsed?.role && isValidRole(parsed.role)) {
-      return {
-        email: parsed.email,
-        role: parsed.role,
-        displayName: parsed.displayName ?? parsed.email,
-      };
-    }
-  } catch {
-    // ignore
+function profileDisplayName(
+  profile: PatientProfile | ResearcherProfile | AdminProfile | null,
+  email: string,
+  role: EhfRole
+): string {
+  if (role === "admin") {
+    const adminProfile = profile as AdminProfile | null;
+    if (adminProfile?.display_name) return adminProfile.display_name;
+    if (adminProfile?.username) return adminProfile.username;
+    return adminEmailToUsername(email);
   }
-  return null;
+  if (!profile) return email;
+  if ("full_name" in profile && profile.full_name) return profile.full_name;
+  return email;
 }
 
-function saveStoredAuth(user: AuthUser): void {
-  if (typeof window === "undefined") return;
-  const stored: StoredAuth = {
+function buildAuthUser(
+  user: { id: string; email: string; ehf_role: EhfRole },
+  profile: PatientProfile | ResearcherProfile | AdminProfile | null
+): AuthUser {
+  return {
+    id: user.id,
     email: user.email,
-    role: user.role,
-    displayName: user.displayName,
+    role: user.ehf_role,
+    displayName: profileDisplayName(profile, user.email, user.ehf_role),
+    profile,
   };
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stored));
-}
-
-function clearStoredAuth(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(AUTH_STORAGE_KEY);
-  sessionStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
 
-  useEffect(() => {
-    setUser(loadStoredAuth());
-    setHasChecked(true);
+  const refreshUser = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) {
+      setUser(null);
+      return;
+    }
+    try {
+      const me = await ehfGetMe();
+      setUser(buildAuthUser(me.user, me.profile));
+    } catch {
+      setAccessToken(null);
+      setUser(null);
+    }
   }, []);
 
-  const login = useCallback((email: string, password: string) => {
-    const found = findMockUser(email, password);
-    if (!found) {
-      return { ok: false as const, error: "邮箱或密码错误" };
-    }
-    const authUser: AuthUser = {
-      email: found.email,
-      role: found.role,
-      displayName: found.displayName,
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await refreshUser();
+      if (!cancelled) setHasChecked(true);
+    })();
+    return () => {
+      cancelled = true;
     };
-    setUser(authUser);
-    saveStoredAuth(authUser);
-    return { ok: true as const, user: authUser };
+  }, [refreshUser]);
+
+  const login = useCallback(async (identifier: string, password: string, options?: { role?: EhfRole }) => {
+    try {
+      const email = normalizeLoginIdentifier(identifier, options?.role ?? null);
+      await ehfLogin(email, password);
+      const me = await ehfGetMe();
+      const authUser = buildAuthUser(me.user, me.profile);
+      setUser(authUser);
+      return { ok: true as const, user: authUser };
+    } catch (err) {
+      return { ok: false as const, error: parseApiErrorMessage(err) };
+    }
   }, []);
 
   const logout = useCallback(() => {
+    setAccessToken(null);
     setUser(null);
-    clearStoredAuth();
   }, []);
 
-  const value: AuthContextValue = {
-    user,
-    hasChecked,
-    login,
-    logout,
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, hasChecked, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -110,8 +128,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
+}
+
+/** 患者 DID，供授权/研究者页使用 */
+export function usePatientDid(): string | null {
+  const { user } = useAuth();
+  if (user?.role !== "patient") return null;
+  const p = user.profile as PatientProfile | null;
+  return p?.did ?? null;
 }

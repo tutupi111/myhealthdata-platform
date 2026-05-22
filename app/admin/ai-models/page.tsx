@@ -17,9 +17,14 @@ import {
 } from "@/components/ui/table";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Plus, Pencil, Loader2, Check, X } from "lucide-react";
-import type { AiModel } from "@/lib/types/ai-config";
-
-const API = "/api/admin/ai-models";
+import type { AiModel } from "@/lib/api/ehfTypes";
+import {
+  ehfAdminCreateAiModel,
+  ehfAdminDeleteAiModel,
+  ehfAdminListAiModels,
+  ehfAdminUpdateAiModel,
+} from "@/lib/api/ehfClient";
+import { parseApiErrorMessage } from "@/lib/api/constants";
 
 export default function AdminAiModelsPage() {
   const [models, setModels] = useState<AiModel[]>([]);
@@ -45,12 +50,10 @@ export default function AdminAiModelsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(API);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "加载失败");
-      setModels(data.models ?? []);
+      const data = await ehfAdminListAiModels({ page_size: 100 });
+      setModels(data.items ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "加载失败");
+      setError(parseApiErrorMessage(e));
       setModels([]);
     } finally {
       setLoading(false);
@@ -112,26 +115,14 @@ export default function AdminAiModelsPage() {
         notes: form.notes.trim() || null,
       };
       if (editingId) {
-        const res = await fetch(API + "/" + editingId, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "保存失败");
+        await ehfAdminUpdateAiModel(editingId, payload);
       } else {
-        const res = await fetch(API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "新增失败");
+        await ehfAdminCreateAiModel(payload);
       }
       setSheetOpen(false);
       fetchModels();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "保存失败");
+      alert(parseApiErrorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -139,50 +130,30 @@ export default function AdminAiModelsPage() {
 
   const setDefault = async (id: string) => {
     try {
-      const res = await fetch(API + "/" + id, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_default: true }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "设置失败");
-      }
+      await ehfAdminUpdateAiModel(id, { is_default: true });
       fetchModels();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "设置失败");
+      alert(parseApiErrorMessage(e));
     }
   };
 
   const toggleActive = async (m: AiModel) => {
     try {
-      const res = await fetch(API + "/" + m.id, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !m.is_active }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "操作失败");
-      }
+      await ehfAdminUpdateAiModel(m.id, { is_active: !m.is_active });
       fetchModels();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "操作失败");
+      alert(parseApiErrorMessage(e));
     }
   };
 
   const deleteModel = async (id: string) => {
     if (!confirm("确定删除该模型？")) return;
     try {
-      const res = await fetch(API + "/" + id, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "删除失败");
-      }
+      await ehfAdminDeleteAiModel(id);
       setSheetOpen(false);
       fetchModels();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "删除失败");
+      alert(parseApiErrorMessage(e));
     }
   };
 

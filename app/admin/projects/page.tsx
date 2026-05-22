@@ -1,4 +1,9 @@
-import { MOCK_ADMIN_PROJECTS } from "@/lib/mock/admin";
+"use client";
+
+import { useEffect, useState } from "react";
+import { ehfAdminListProjects } from "@/lib/api/ehfClient";
+import type { ResearchProject } from "@/lib/api/ehfTypes";
+import { formatEhfDate, parseApiErrorMessage, projectStatusLabel } from "@/lib/api/constants";
 import { PageSection } from "@/components/layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,69 +15,78 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-function statusVariant(
-  status: "draft" | "published" | "closed"
-): "outline" | "success" | "secondary" {
-  if (status === "published") return "success";
-  if (status === "closed") return "secondary";
-  return "outline";
-}
-
-function statusLabel(status: "draft" | "published" | "closed"): string {
-  if (status === "draft") return "草稿";
-  if (status === "published") return "已发布";
-  return "已结束";
-}
+import { Loader2 } from "lucide-react";
 
 export default function AdminProjectsPage() {
+  const [projects, setProjects] = useState<ResearchProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await ehfAdminListProjects({ page_size: 100 });
+        if (!cancelled) setProjects(data.items ?? []);
+      } catch (err) {
+        if (!cancelled) setError(parseApiErrorMessage(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">项目管理</h1>
-        <p className="text-muted-foreground mt-1">
-          平台研究项目列表
-        </p>
+        <p className="text-muted-foreground mt-1">全平台研究项目</p>
       </div>
 
-      <PageSection
-        title="项目列表"
-        description={`共 ${MOCK_ADMIN_PROJECTS.length} 个项目`}
-      >
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>项目名称</TableHead>
-                <TableHead>研究机构</TableHead>
-                <TableHead>疾病方向</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>创建时间</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {MOCK_ADMIN_PROJECTS.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.title}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {p.organization}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {p.diseaseType}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(p.status)}>
-                      {statusLabel(p.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {p.createdAt}
-                  </TableCell>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <PageSection title="项目列表" description={`共 ${projects.length} 个项目`}>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>项目名称</TableHead>
+                  <TableHead>机构</TableHead>
+                  <TableHead>疾病方向</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>创建时间</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+              </TableHeader>
+              <TableBody>
+                {projects.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium">{p.title}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {p.organization_name ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {p.disease_type ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{projectStatusLabel(p.status)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {formatEhfDate(p.created_at)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
       </PageSection>
     </div>
   );

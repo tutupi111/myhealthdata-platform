@@ -1,3 +1,6 @@
+export { LanguageSwitcher } from "./LanguageSwitcher";
+export { AuthPageFrame } from "./AuthPageFrame";
+export { LocalizedRoleLayout } from "./LocalizedRoleLayout";
 export { AppSidebar } from "./AppSidebar";
 export type { AppSidebarProps } from "./AppSidebar";
 export { AppTopbar } from "./AppTopbar";
