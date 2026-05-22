@@ -160,8 +160,12 @@ export const zh = {
   adminAi: {
     pipelineHint:
       "图片/PDF 已在数据服务器完成 OCR 与文本提取；structured_extract 只需文本模型（不必勾选「支持视觉」）。OCR 由服务端 RapidOCR 完成，不在浏览器执行。",
+    llmBaseUrlHint:
+      "OpenAI 兼容 Base URL 不要包含 /chat/completions（由服务端拼接）。各厂商示例：DeepSeek https://api.deepseek.com；Moonshot https://api.moonshot.cn/v1。",
     moonshotHint:
-      "若出现 Moonshot 400：请确认 base_url 为 https://api.moonshot.cn/v1，model_name 与控制台一致（如 moonshot-v1-8k、moonshot-v1-32k），API Key 有效；可先不勾选「支持 JSON」，后端会自动重试不带 response_format 的请求。",
+      "Moonshot 400：base_url 用 https://api.moonshot.cn/v1，model_name 与控制台一致（如 moonshot-v1-8k）；可先不勾选「支持 JSON」。",
+    deepseekHint:
+      "DeepSeek 400（URL 已对仍失败）：官方 base_url 为 https://api.deepseek.com（无需 /v1）。model_name 请用 deepseek-v4-flash 或 deepseek-v4-pro（过渡期可用 deepseek-chat）。若仍 400，多为后端请求体含已废弃参数（如 frequency_penalty）或模型名拼写错误，需查 AI 日志响应体。",
     tasksEmpty: "暂无任务配置，请确认后端已初始化五种任务类型，或联系运维检查 /v1/ehf/admin/ai-task-configs",
     tasksNoModelBinding:
       "列表未读到任何首选/备用模型绑定。保存后若仍全部为「—」，请在浏览器开发者工具 Network 中查看 ai-task-configs 响应是否含 preferred_model_id；若为空需后端修复 GET/PATCH 持久化。",

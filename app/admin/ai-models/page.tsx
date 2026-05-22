@@ -204,7 +204,7 @@ export default function AdminAiModelsPage() {
                     id="base_url"
                     value={form.base_url}
                     onChange={(e) => setForm((f) => ({ ...f, base_url: e.target.value }))}
-                    placeholder="https://..."
+                    placeholder="https://api.deepseek.com"
                   />
                 </div>
                 <div>

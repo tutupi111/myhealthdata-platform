@@ -19,12 +19,16 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Pencil, Loader2, Check } from "lucide-react";
 import type { AiModel } from "@/lib/api/ehfTypes";
 import {
+  ehfAdminListAiLogs,
   ehfAdminListAiModels,
   ehfAdminListAiTaskConfigs,
   ehfAdminUpdateAiTaskConfig,
 } from "@/lib/api/ehfClient";
+import type { AiLog } from "@/lib/api/ehfTypes";
 import {
-  formatTaskConfigModelLabel,
+  applyTaskConfigDisplayCache,
+  buildLatestModelNameByTaskType,
+  formatTaskConfigModelLabelWithRecent,
   mergeTaskConfigAfterSave,
   normalizeAiTaskConfigRows,
   type AiTaskConfigRow,
@@ -38,6 +42,9 @@ export default function AdminAiTasksPage() {
   const { t } = useLocale();
   const [configs, setConfigs] = useState<AiTaskConfigRow[]>([]);
   const [models, setModels] = useState<AiModel[]>([]);
+  const [recentModelByTask, setRecentModelByTask] = useState<Map<string, string>>(
+    () => new Map()
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -56,13 +63,18 @@ export default function AdminAiTasksPage() {
     setLoading(true);
     setError(null);
     try {
-      const [configData, modelData] = await Promise.all([
+      const [configData, modelData, logData] = await Promise.all([
         ehfAdminListAiTaskConfigs(),
         ehfAdminListAiModels({ page_size: 100 }),
+        ehfAdminListAiLogs({ page_size: 100 }).catch(() => ({ items: [] as AiLog[] })),
       ]);
       const modelItems = extractPaginatedItems<AiModel>(modelData);
+      const logItems = extractPaginatedItems<AiLog>(logData);
       setModels(modelItems);
-      setConfigs(normalizeAiTaskConfigRows(configData));
+      setRecentModelByTask(buildLatestModelNameByTaskType(logItems));
+      setConfigs(
+        applyTaskConfigDisplayCache(normalizeAiTaskConfigRows(configData))
+      );
     } catch (e) {
       setError(parseApiErrorMessage(e));
       setConfigs([]);
@@ -185,13 +197,14 @@ export default function AdminAiTasksPage() {
                         {TASK_TYPE_LABELS[c.task_type] ?? c.task_type}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {formatTaskConfigModelLabel(c.preferred_model_id, models, {
+                        {formatTaskConfigModelLabelWithRecent(c.preferred_model_id, models, {
                           nested: c.preferred_model,
                           flatName: c.preferred_model_name,
+                          recentModelName: recentModelByTask.get(c.task_type),
                         })}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {formatTaskConfigModelLabel(c.fallback_model_id, models, {
+                        {formatTaskConfigModelLabelWithRecent(c.fallback_model_id, models, {
                           nested: c.fallback_model,
                           flatName: c.fallback_model_name,
                         })}

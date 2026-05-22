@@ -332,7 +332,35 @@ JSON 必须包含以下字段（均为英文 key）：
 
 ---
 
-## 十四、前端联调联系人
+## 十四、常见厂商 structured_extract 报错（联调）
+
+### 14.1 DeepSeek `400 Bad Request`
+
+官方（2026-04 文档）：`base_url` = `https://api.deepseek.com`，请求 `POST /chat/completions`（**不要**在管理端 Base URL 里再写 `/chat/completions`）。`/v1` 仅为部分 SDK 别名，**不是** 400 的主因。
+
+| 检查项 | 建议 |
+|--------|------|
+| `model_name` | `deepseek-v4-flash` 或 `deepseek-v4-pro`（过渡期可用 `deepseek-chat` / `deepseek-reasoner`，2026-07-24 后废弃） |
+| 请求体 | **勿传** DeepSeek 已废弃的 `frequency_penalty`、`presence_penalty`（易直接 400） |
+| `response_format` | 支持 `json_object`，但须在 system/user 中要求输出 JSON；若 400，Worker 应重试**不带** `response_format`（见 OCR 实现说明） |
+| 日志 | `ai_logs.error_message` 或上游响应 `detail` 需落库，便于区分「模型名无效」与「参数非法」 |
+
+管理端配置示例：
+
+```text
+provider: deepseek
+base_url: https://api.deepseek.com
+model_name: deepseek-v4-flash
+```
+
+### 14.2 Moonshot / MiniMax
+
+- Moonshot：`base_url` = `https://api.moonshot.cn/v1`，`model_name` 与控制台一致。  
+- MiniMax：按厂商文档填 `base_url` 与模型 ID；若返回 JSON 后解析 `Extra data`，为**响应多段内容**，需宽松 JSON 提取而非改 URL。
+
+---
+
+## 十五、前端联调联系人
 
 - 环境变量：`NEXT_PUBLIC_DATA_HUB_*`（Vercel 已配置）  
 - 无需改上传/详情代码；部署后端后患者重新上传或对 `uploaded` 记录再点「处理」即可验证  

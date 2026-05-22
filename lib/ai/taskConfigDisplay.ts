@@ -1,5 +1,14 @@
-import type { AiModel, AiTaskConfig } from "@/lib/api/ehfTypes";
+import type { AiLog, AiModel, AiTaskConfig } from "@/lib/api/ehfTypes";
 import { extractApiList } from "@/lib/api/unwrapApiResponse";
+
+const TASK_CONFIG_DISPLAY_CACHE_KEY = "ehf_admin_task_config_display_v1";
+
+export type TaskConfigDisplayCacheEntry = {
+  preferred_model_id?: string | null;
+  fallback_model_id?: string | null;
+  preferred_label?: string | null;
+  fallback_label?: string | null;
+};
 
 /** 后端 GET 可能返回的扩展字段（仅 id 或扁平 model_name） */
 export type AiTaskConfigRow = AiTaskConfig & {
@@ -49,12 +58,24 @@ function resolveModelRef(
   const modelKey = `${prefix}_model`;
   const ref = raw[modelKey];
 
+  const bindings =
+    raw.model_bindings && typeof raw.model_bindings === "object"
+      ? (raw.model_bindings as Record<string, unknown>)
+      : null;
+
   let modelId =
     pickId(raw, `${prefix}_model_id`, `${prefix}ModelId`, `${prefix}_ai_model_id`) ??
+    (bindings ? pickId(bindings, prefix, `${prefix}_model_id`, `${prefix}ModelId`) : null) ??
     null;
   let modelName =
-    pickString(raw, `${prefix}_model_name`, `${prefix}ModelName`) ?? null;
+    pickString(raw, `${prefix}_model_name`, `${prefix}ModelName`) ??
+    (bindings ? pickString(bindings, `${prefix}_model_name`, `${prefix}ModelName`) : null) ??
+    null;
   let nested: AiModel | null = null;
+
+  if (!modelId && prefix === "preferred") {
+    modelId = pickId(raw, "model_id", "modelId", "default_model_id", "defaultModelId");
+  }
 
   if (typeof ref === "string" && ref.trim()) {
     const s = ref.trim();
@@ -105,13 +126,20 @@ export function findAiModelByRef(
     const exact = models.find((m) => m.id === id);
     if (exact) return exact;
     const lower = id.toLowerCase();
-    return models.find(
+    const byId = models.find(
       (m) =>
         m.id.toLowerCase() === lower ||
         m.id.endsWith(id) ||
         id.endsWith(m.id) ||
         m.id.replace(/^aim_/, "") === id.replace(/^aim_/, "")
     );
+    if (byId) return byId;
+    const byNameFromId = models.find(
+      (m) =>
+        m.model_name.toLowerCase() === lower ||
+        `${m.provider}/${m.model_name}`.toLowerCase() === lower
+    );
+    if (byNameFromId) return byNameFromId;
   }
   if (modelName) {
     const n = modelName.trim().toLowerCase();
@@ -153,6 +181,72 @@ export function formatTaskConfigModelLabel(
   return `已配置（${modelId.length > 16 ? `${modelId.slice(0, 16)}…` : modelId}）`;
 }
 
+export function formatTaskConfigModelLabelWithRecent(
+  modelId: string | null | undefined,
+  models: AiModel[],
+  options?: {
+    nested?: { model_name?: string; provider?: string } | null;
+    flatName?: string | null;
+    recentModelName?: string | null;
+  }
+): string {
+  const primary = formatTaskConfigModelLabel(modelId, models, options);
+  if (primary !== "—") return primary;
+  const recent = options?.recentModelName?.trim();
+  if (recent) return `${recent}（最近执行）`;
+  return "—";
+}
+
+export function loadTaskConfigDisplayCache(): Record<string, TaskConfigDisplayCacheEntry> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(TASK_CONFIG_DISPLAY_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, TaskConfigDisplayCacheEntry>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveTaskConfigDisplayCache(
+  configId: string,
+  entry: TaskConfigDisplayCacheEntry
+): void {
+  if (typeof window === "undefined") return;
+  const all = loadTaskConfigDisplayCache();
+  all[configId] = entry;
+  localStorage.setItem(TASK_CONFIG_DISPLAY_CACHE_KEY, JSON.stringify(all));
+}
+
+export function applyTaskConfigDisplayCache(rows: AiTaskConfigRow[]): AiTaskConfigRow[] {
+  const cache = loadTaskConfigDisplayCache();
+  return rows.map((row) => {
+    const c = cache[row.id];
+    if (!c) return row;
+    return {
+      ...row,
+      preferred_model_id: row.preferred_model_id ?? c.preferred_model_id ?? null,
+      fallback_model_id: row.fallback_model_id ?? c.fallback_model_id ?? null,
+      preferred_model_name: row.preferred_model_name ?? c.preferred_label ?? null,
+      fallback_model_name: row.fallback_model_name ?? c.fallback_label ?? null,
+    };
+  });
+}
+
+/** 从 AI 日志推断各任务类型最近使用的模型名（GET 未返回绑定时用于展示） */
+export function buildLatestModelNameByTaskType(logs: AiLog[]): Map<string, string> {
+  const sorted = [...logs].sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
+  const map = new Map<string, string>();
+  for (const log of sorted) {
+    const name = log.model_name?.trim();
+    if (name && !map.has(log.task_type)) {
+      map.set(log.task_type, name);
+    }
+  }
+  return map;
+}
+
 /** 保存后合并表单与模型列表，保证表格即时显示 */
 export function mergeTaskConfigAfterSave(
   row: AiTaskConfigRow,
@@ -167,17 +261,27 @@ export function mergeTaskConfigAfterSave(
   const preferredModel = findAiModelByRef(models, preferredId);
   const fallbackModel = findAiModelByRef(models, fallbackId);
 
+  const preferredLabel = preferredModel
+    ? `${preferredModel.provider} / ${preferredModel.model_name}`
+    : row.preferred_model_name ?? null;
+  const fallbackLabel = fallbackModel
+    ? `${fallbackModel.provider} / ${fallbackModel.model_name}`
+    : row.fallback_model_name ?? null;
+
+  saveTaskConfigDisplayCache(row.id, {
+    preferred_model_id: preferredId,
+    fallback_model_id: fallbackId,
+    preferred_label: preferredLabel,
+    fallback_label: fallbackLabel,
+  });
+
   return {
     ...row,
     preferred_model_id: preferredId,
     fallback_model_id: fallbackId,
     preferred_model: preferredModel ?? row.preferred_model ?? null,
     fallback_model: fallbackModel ?? row.fallback_model ?? null,
-    preferred_model_name: preferredModel
-      ? `${preferredModel.provider} / ${preferredModel.model_name}`
-      : row.preferred_model_name ?? null,
-    fallback_model_name: fallbackModel
-      ? `${fallbackModel.provider} / ${fallbackModel.model_name}`
-      : row.fallback_model_name ?? null,
+    preferred_model_name: preferredLabel,
+    fallback_model_name: fallbackLabel,
   };
 }

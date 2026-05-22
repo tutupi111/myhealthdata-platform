@@ -16,20 +16,14 @@ import { Loader2 } from "lucide-react";
 import { TASK_TYPE_LABELS, formatEhfDate, parseApiErrorMessage } from "@/lib/api/constants";
 import type { AiLog } from "@/lib/api/ehfTypes";
 import { ehfAdminListAiLogs } from "@/lib/api/ehfClient";
+import { extractPaginatedItems } from "@/lib/api/unwrapApiResponse";
+import {
+  AI_LOG_STATUS_FILTER_OPTIONS,
+  getAiLogStatusLabel,
+  getAiLogStatusVariant,
+} from "@/lib/ai/aiLogDisplay";
 
 const PAGE_SIZE = 50;
-
-function statusVariant(s: string): "success" | "destructive" | "secondary" {
-  if (s === "success") return "success";
-  if (s === "failed") return "destructive";
-  return "secondary";
-}
-
-function statusLabel(s: string): string {
-  if (s === "success") return "成功";
-  if (s === "failed") return "失败";
-  return "待处理";
-}
 
 export default function AdminAiLogsPage() {
   const [logs, setLogs] = useState<AiLog[]>([]);
@@ -50,8 +44,13 @@ export default function AdminAiLogsPage() {
         status: statusFilter || undefined,
         task_type: taskTypeFilter || undefined,
       });
-      setLogs(data.items ?? []);
-      setTotal(data.total ?? 0);
+      const items = extractPaginatedItems<AiLog>(data);
+      setLogs(items);
+      setTotal(
+        typeof data === "object" && data !== null && "total" in data
+          ? Number((data as { total?: number }).total) || items.length
+          : items.length
+      );
     } catch (e) {
       setError(parseApiErrorMessage(e));
       setLogs([]);
@@ -71,7 +70,9 @@ export default function AdminAiLogsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">AI 执行日志</h1>
-        <p className="text-muted-foreground mt-1">查看 AI 任务执行记录</p>
+        <p className="text-muted-foreground mt-1">
+          查看 AI 任务执行记录（后端 status 多为 completed / failed / pending）
+        </p>
       </div>
 
       <PageSection title="日志列表" description={`共 ${total} 条`}>
@@ -84,10 +85,11 @@ export default function AdminAiLogsPage() {
               setPage(1);
             }}
           >
-            <option value="">全部状态</option>
-            <option value="success">成功</option>
-            <option value="failed">失败</option>
-            <option value="pending">待处理</option>
+            {AI_LOG_STATUS_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value || "all"} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
           <select
             className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -143,8 +145,8 @@ export default function AdminAiLogsPage() {
                         </TableCell>
                         <TableCell className="text-sm">{log.model_name ?? "—"}</TableCell>
                         <TableCell>
-                          <Badge variant={statusVariant(log.status)}>
-                            {statusLabel(log.status)}
+                          <Badge variant={getAiLogStatusVariant(log.status, log)}>
+                            {getAiLogStatusLabel(log.status, log)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">
