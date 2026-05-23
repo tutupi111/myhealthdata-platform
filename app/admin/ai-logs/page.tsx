@@ -22,6 +22,7 @@ import {
   getAiLogStatusLabel,
   getAiLogStatusVariant,
 } from "@/lib/ai/aiLogDisplay";
+import { normalizeAiLogRows } from "@/lib/ai/normalizeAiLogRow";
 
 const PAGE_SIZE = 50;
 
@@ -44,7 +45,7 @@ export default function AdminAiLogsPage() {
         status: statusFilter || undefined,
         task_type: taskTypeFilter || undefined,
       });
-      const items = extractPaginatedItems<AiLog>(data);
+      const items = normalizeAiLogRows(data);
       setLogs(items);
       setTotal(
         typeof data === "object" && data !== null && "total" in data

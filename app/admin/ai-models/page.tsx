@@ -16,7 +16,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Plus, Pencil, Loader2, Check, X } from "lucide-react";
+import { Plus, Pencil, Loader2, Check, X, Radio } from "lucide-react";
+import { extractPaginatedItems } from "@/lib/api/unwrapApiResponse";
+import { testDraftAiModel, testSavedAiModel } from "@/lib/ai/testAiModel";
 import type { AiModel } from "@/lib/api/ehfTypes";
 import {
   ehfAdminCreateAiModel,
@@ -36,6 +38,10 @@ export default function AdminAiModelsPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testMessage, setTestMessage] = useState<string | null>(null);
+  const [testOk, setTestOk] = useState<boolean | null>(null);
+  const [rowTestingId, setRowTestingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     provider: "",
     model_name: "",
@@ -54,7 +60,7 @@ export default function AdminAiModelsPage() {
     setError(null);
     try {
       const data = await ehfAdminListAiModels({ page_size: 100 });
-      setModels(data.items ?? []);
+      setModels(extractPaginatedItems<AiModel>(data));
     } catch (e) {
       setError(parseApiErrorMessage(e));
       setModels([]);
@@ -81,6 +87,8 @@ export default function AdminAiModelsPage() {
       priority: 0,
       notes: "",
     });
+    setTestMessage(null);
+    setTestOk(null);
     setSheetOpen(true);
   };
 
@@ -98,6 +106,8 @@ export default function AdminAiModelsPage() {
       priority: m.priority,
       notes: m.notes ?? "",
     });
+    setTestMessage(null);
+    setTestOk(null);
     setSheetOpen(true);
   };
 
@@ -146,6 +156,60 @@ export default function AdminAiModelsPage() {
       fetchModels();
     } catch (e) {
       alert(parseApiErrorMessage(e));
+    }
+  };
+
+  const runConnectivityTest = async (opts: {
+    modelId?: string;
+    useForm?: boolean;
+  }) => {
+    setTesting(true);
+    setTestMessage(null);
+    setTestOk(null);
+    try {
+      const result =
+        opts.useForm && !opts.modelId
+          ? await testDraftAiModel({
+              provider: form.provider,
+              model_name: form.model_name,
+              base_url: form.base_url,
+              api_key: form.api_key,
+            })
+          : opts.modelId
+            ? await testSavedAiModel(opts.modelId)
+            : { ok: false, message: "无法测试：缺少模型 ID" };
+      setTestOk(result.ok);
+      setTestMessage(
+        result.latencyMs != null
+          ? `${result.message}（${result.latencyMs} ms）`
+          : result.message
+      );
+    } finally {
+      setTesting(false);
+      setRowTestingId(null);
+    }
+  };
+
+  const testRowModel = async (m: AiModel) => {
+    if (!m.api_key_set) {
+      alert("该模型未配置 API Key，请先编辑并保存密钥后再测试。");
+      return;
+    }
+    setRowTestingId(m.id);
+    setTestMessage(null);
+    setTestOk(null);
+    setTesting(true);
+    try {
+      const result = await testSavedAiModel(m.id);
+      setTestOk(result.ok);
+      setTestMessage(
+        result.latencyMs != null
+          ? `${result.message}（${result.latencyMs} ms）`
+          : result.message
+      );
+    } finally {
+      setTesting(false);
+      setRowTestingId(null);
     }
   };
 
@@ -271,8 +335,37 @@ export default function AdminAiModelsPage() {
                     placeholder="可选"
                   />
                 </div>
-                <div className="flex gap-2 pt-4">
-                  <Button type="submit" disabled={saving}>
+                {testMessage && (
+                  <p
+                    className={`text-sm rounded-md px-3 py-2 ${
+                      testOk
+                        ? "text-green-800 bg-green-50 border border-green-200 dark:text-green-200 dark:bg-green-950/40"
+                        : "text-destructive bg-destructive/10 border border-destructive/30"
+                    }`}
+                  >
+                    {testMessage}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={testing || saving}
+                    onClick={() =>
+                      runConnectivityTest({
+                        modelId: editingId ?? undefined,
+                        useForm: !editingId || Boolean(form.api_key.trim()),
+                      })
+                    }
+                  >
+                    {testing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Radio className="h-4 w-4" />
+                    )}
+                    {testing ? "测试中…" : "测试连通"}
+                  </Button>
+                  <Button type="submit" disabled={saving || testing}>
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                     {saving ? "保存中…" : "保存"}
                   </Button>
@@ -314,7 +407,7 @@ export default function AdminAiModelsPage() {
                   <TableHead>状态</TableHead>
                   <TableHead>默认</TableHead>
                   <TableHead>优先级</TableHead>
-                  <TableHead className="w-[180px]">操作</TableHead>
+                  <TableHead className="w-[240px]">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -354,7 +447,21 @@ export default function AdminAiModelsPage() {
                       </TableCell>
                       <TableCell>{m.priority}</TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title={m.api_key_set ? "测试 API 连通" : "需先配置 API Key"}
+                            disabled={!m.api_key_set || rowTestingId === m.id}
+                            onClick={() => testRowModel(m)}
+                          >
+                            {rowTestingId === m.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Radio className="h-4 w-4" />
+                            )}
+                            测试
+                          </Button>
                           <Button size="sm" variant="outline" onClick={() => openEdit(m)}>
                             <Pencil className="h-4 w-4" />
                           </Button>

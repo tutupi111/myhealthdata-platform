@@ -7,11 +7,21 @@ export function normalizeAiLogStatus(
   status: string,
   log?: Pick<AiLog, "duration_ms" | "error_message">
 ): AiLogDisplayStatus {
-  const s = (status ?? "").trim().toLowerCase();
-  if (["success", "completed", "ok", "done", "succeeded"].includes(s)) {
+  const raw = (status ?? "").trim();
+  const s = raw.toLowerCase();
+  if (
+    ["success", "completed", "ok", "done", "succeeded", "complete"].includes(s) ||
+    raw === "成功" ||
+    raw === "已完成" ||
+    raw === "完成"
+  ) {
     return "success";
   }
-  if (["failed", "error", "failure", "cancelled", "canceled"].includes(s)) {
+  if (
+    ["failed", "error", "failure", "cancelled", "canceled"].includes(s) ||
+    raw === "失败" ||
+    raw === "错误"
+  ) {
     return "failed";
   }
   if (

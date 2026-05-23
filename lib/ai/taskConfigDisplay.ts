@@ -1,9 +1,10 @@
 import type { AiLog, AiModel, AiTaskConfig } from "@/lib/api/ehfTypes";
-import { extractApiList } from "@/lib/api/unwrapApiResponse";
+import { extractTaskConfigList } from "@/lib/api/unwrapApiResponse";
 
 const TASK_CONFIG_DISPLAY_CACHE_KEY = "ehf_admin_task_config_display_v1";
 
 export type TaskConfigDisplayCacheEntry = {
+  task_type?: string;
   preferred_model_id?: string | null;
   fallback_model_id?: string | null;
   preferred_label?: string | null;
@@ -79,7 +80,10 @@ function resolveModelRef(
 
   if (typeof ref === "string" && ref.trim()) {
     const s = ref.trim();
-    if (/^aim_|^[0-9a-f-]{8}-[0-9a-f-]{4}-/i.test(s)) {
+    if (
+      /^aim_/i.test(s) ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+    ) {
       modelId = modelId ?? s;
     } else {
       modelName = modelName ?? s;
@@ -95,7 +99,7 @@ function resolveModelRef(
 
 /** 将列表接口各种形态归一为前端使用的配置行 */
 export function normalizeAiTaskConfigRows(data: unknown): AiTaskConfigRow[] {
-  const list = extractApiList(data);
+  const list = extractTaskConfigList(data);
 
   return list.map((item) => {
     const raw = item as Record<string, unknown>;
@@ -211,18 +215,56 @@ export function loadTaskConfigDisplayCache(): Record<string, TaskConfigDisplayCa
 
 export function saveTaskConfigDisplayCache(
   configId: string,
-  entry: TaskConfigDisplayCacheEntry
+  entry: TaskConfigDisplayCacheEntry,
+  taskType?: string
 ): void {
   if (typeof window === "undefined") return;
   const all = loadTaskConfigDisplayCache();
   all[configId] = entry;
+  if (taskType) {
+    all[`task:${taskType}`] = { ...entry, task_type: taskType };
+  }
   localStorage.setItem(TASK_CONFIG_DISPLAY_CACHE_KEY, JSON.stringify(all));
+}
+
+/** 用模型列表补全 id / 展示名 */
+export function enrichTaskConfigsWithModels(
+  rows: AiTaskConfigRow[],
+  models: AiModel[]
+): AiTaskConfigRow[] {
+  return rows.map((row) => {
+    const pref = findAiModelByRef(
+      models,
+      row.preferred_model_id,
+      row.preferred_model_name ?? row.preferred_model?.model_name
+    );
+    const fall = findAiModelByRef(
+      models,
+      row.fallback_model_id,
+      row.fallback_model_name ?? row.fallback_model?.model_name
+    );
+    return {
+      ...row,
+      preferred_model_id: pref?.id ?? row.preferred_model_id,
+      fallback_model_id: fall?.id ?? row.fallback_model_id,
+      preferred_model: pref ?? row.preferred_model ?? null,
+      fallback_model: fall ?? row.fallback_model ?? null,
+      preferred_model_name: pref
+        ? `${pref.provider} / ${pref.model_name}`
+        : row.preferred_model_name,
+      fallback_model_name: fall
+        ? `${fall.provider} / ${fall.model_name}`
+        : row.fallback_model_name,
+    };
+  });
 }
 
 export function applyTaskConfigDisplayCache(rows: AiTaskConfigRow[]): AiTaskConfigRow[] {
   const cache = loadTaskConfigDisplayCache();
   return rows.map((row) => {
-    const c = cache[row.id];
+    const c =
+      cache[row.id] ??
+      (row.task_type ? cache[`task:${row.task_type}`] : undefined);
     if (!c) return row;
     return {
       ...row,
@@ -268,12 +310,14 @@ export function mergeTaskConfigAfterSave(
     ? `${fallbackModel.provider} / ${fallbackModel.model_name}`
     : row.fallback_model_name ?? null;
 
-  saveTaskConfigDisplayCache(row.id, {
+  const entry: TaskConfigDisplayCacheEntry = {
+    task_type: row.task_type,
     preferred_model_id: preferredId,
     fallback_model_id: fallbackId,
     preferred_label: preferredLabel,
     fallback_label: fallbackLabel,
-  });
+  };
+  saveTaskConfigDisplayCache(row.id, entry, row.task_type);
 
   return {
     ...row,

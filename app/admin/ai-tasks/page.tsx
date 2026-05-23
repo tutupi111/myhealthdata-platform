@@ -28,6 +28,8 @@ import type { AiLog } from "@/lib/api/ehfTypes";
 import {
   applyTaskConfigDisplayCache,
   buildLatestModelNameByTaskType,
+  enrichTaskConfigsWithModels,
+  findAiModelByRef,
   formatTaskConfigModelLabelWithRecent,
   mergeTaskConfigAfterSave,
   normalizeAiTaskConfigRows,
@@ -72,9 +74,11 @@ export default function AdminAiTasksPage() {
       const logItems = extractPaginatedItems<AiLog>(logData);
       setModels(modelItems);
       setRecentModelByTask(buildLatestModelNameByTaskType(logItems));
-      setConfigs(
-        applyTaskConfigDisplayCache(normalizeAiTaskConfigRows(configData))
+      const normalized = enrichTaskConfigsWithModels(
+        applyTaskConfigDisplayCache(normalizeAiTaskConfigRows(configData)),
+        modelItems
       );
+      setConfigs(normalized);
     } catch (e) {
       setError(parseApiErrorMessage(e));
       setConfigs([]);
@@ -90,9 +94,18 @@ export default function AdminAiTasksPage() {
 
   const openEdit = (c: AiTaskConfigRow) => {
     setEditingConfig(c);
+    const recentName = recentModelByTask.get(c.task_type);
+    const preferredResolved =
+      c.preferred_model_id ??
+      findAiModelByRef(models, null, c.preferred_model_name ?? recentName)?.id ??
+      null;
+    const fallbackResolved =
+      c.fallback_model_id ??
+      findAiModelByRef(models, null, c.fallback_model_name)?.id ??
+      null;
     setForm({
-      preferred_model_id: c.preferred_model_id ?? null,
-      fallback_model_id: c.fallback_model_id ?? null,
+      preferred_model_id: preferredResolved,
+      fallback_model_id: fallbackResolved,
       prompt_template: c.prompt_template ?? "",
       timeout: c.timeout ?? 60,
       max_tokens: c.max_tokens ?? 4096,
@@ -114,13 +127,14 @@ export default function AdminAiTasksPage() {
         max_tokens: form.max_tokens,
         is_enabled: form.is_enabled,
       };
-      await ehfAdminUpdateAiTaskConfig(editingConfig.id, patch);
+      const updated = await ehfAdminUpdateAiTaskConfig(editingConfig.id, patch);
+      const merged = mergeTaskConfigAfterSave(
+        { ...editingConfig, ...normalizeAiTaskConfigRows([updated])[0] },
+        patch,
+        models
+      );
       setConfigs((prev) =>
-        prev.map((c) =>
-          c.id === editingConfig.id
-            ? mergeTaskConfigAfterSave(c, patch, models)
-            : c
-        )
+        prev.map((c) => (c.id === editingConfig.id ? merged : c))
       );
       setSheetOpen(false);
       void fetchData();

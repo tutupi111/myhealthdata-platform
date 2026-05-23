@@ -9,7 +9,36 @@ export function unwrapApiPayload(body: unknown): unknown {
   return body;
 }
 
-const LIST_KEYS = ["items", "configs", "task_configs", "results", "list", "records"] as const;
+const LIST_KEYS = ["items", "configs", "task_configs", "results", "list", "records", "logs"] as const;
+
+const TASK_CONFIG_TYPES = [
+  "ocr_extract",
+  "doc_classify",
+  "structured_extract",
+  "tagging",
+  "summary",
+] as const;
+
+/** 任务配置可能是数组，也可能是 { structured_extract: { ... } } */
+export function extractTaskConfigList(body: unknown): unknown[] {
+  const fromList = extractApiList(body);
+  if (fromList.length > 0) return fromList;
+
+  const payload = unwrapApiPayload(body);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return [];
+  }
+
+  const o = payload as Record<string, unknown>;
+  const byTask: unknown[] = [];
+  for (const taskType of TASK_CONFIG_TYPES) {
+    const row = o[taskType];
+    if (row && typeof row === "object") {
+      byTask.push({ ...(row as Record<string, unknown>), task_type: taskType });
+    }
+  }
+  return byTask;
+}
 
 export function extractApiList(body: unknown): unknown[] {
   const payload = unwrapApiPayload(body);

@@ -65,7 +65,8 @@ flowchart LR
 | 管理 · 仪表盘 / 患者 / 档案 / 审计 | ✅ 基本完成 | 列表分页接 Hub |
 | 管理 · AI 模型 | ✅ 完成 | 增删改查；含 DeepSeek / Moonshot 配置提示 |
 | 管理 · AI 任务路由 | 🟡 可用有兜底 | 保存与执行有效；列表展示见 §4.1 |
-| 管理 · AI 日志 | 🟡 已修展示 | `completed` →「成功」；见提交 `c27ea22` |
+| 管理 · AI 日志 | 🟡 已加强 | `normalizeAiLogRow` + `completed`/耗时兜底 |
+| 管理 · AI 模型测试 | 🟡 前端已接 | `POST .../ai-models/{id}/test`（需后端实现，见后端修复文档） |
 | 管理 · 账号安全 | 🟡 前端就绪 | 改密/绑邮箱/找回密码；部分接口待后端 |
 | 国际化 | ✅ 中英 | `lib/i18n/` |
 | 遗留 Supabase 路由 | ⚪ 不部署 | 仅仓库内保留，勿接生产 |
@@ -203,6 +204,7 @@ flowchart LR
 | [`apidoc/FRONTEND_INTEGRATION.md`](apidoc/FRONTEND_INTEGRATION.md) | 环境变量与联调清单 |
 | [`apidoc/EHF_AI_PROCESSING_BACKEND_REQUIREMENTS.md`](apidoc/EHF_AI_PROCESSING_BACKEND_REQUIREMENTS.md) | 后端 AI 需求与验收 |
 | [`apidoc/EHF_OCR_DOCUMENT_PIPELINE_IMPLEMENTATION_NOTE.md`](apidoc/EHF_OCR_DOCUMENT_PIPELINE_IMPLEMENTATION_NOTE.md) | 服务器 OCR 流水线 |
+| [`apidoc/EHF_ADMIN_AI_API_BACKEND_FIXES.md`](apidoc/EHF_ADMIN_AI_API_BACKEND_FIXES.md) | 任务配置 GET / 日志 status / 模型测试 API |
 
 ---
 

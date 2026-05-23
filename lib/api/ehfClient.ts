@@ -579,6 +579,34 @@ export async function ehfAdminDeleteAiModel(id: string): Promise<void> {
   await ehfFetch<void>(`/v1/ehf/admin/ai-models/${id}`, { method: "DELETE" });
 }
 
+export interface AiModelTestResult {
+  ok: boolean;
+  message: string;
+  latency_ms?: number;
+  model_id?: string;
+}
+
+/** 使用服务端已保存的 api_key 测试模型连通性 */
+export async function ehfAdminTestAiModel(modelId: string): Promise<AiModelTestResult> {
+  return ehfFetch<AiModelTestResult>(`/v1/ehf/admin/ai-models/${modelId}/test`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+/** 保存前用表单中的密钥测试（可选，需后端实现） */
+export async function ehfAdminTestAiModelDraft(body: {
+  provider: string;
+  model_name: string;
+  base_url?: string | null;
+  api_key: string;
+}): Promise<AiModelTestResult> {
+  return ehfFetch<AiModelTestResult>("/v1/ehf/admin/ai-models/test", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function ehfAdminListAiTaskConfigs(): Promise<unknown> {
   return ehfFetch<unknown>("/v1/ehf/admin/ai-task-configs");
 }
