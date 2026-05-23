@@ -27,9 +27,9 @@ export function RoleLayoutShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* 桌面端侧栏：md 及以上常驻 */}
-      <div className="hidden md:block">
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* 桌面端侧栏：固定视口高度，底部按钮不随右侧内容滚动 */}
+      <div className="hidden md:flex md:h-full md:shrink-0">
         <AppSidebar role={role} navItems={navItems} title={title} showHeader />
       </div>
 
@@ -47,8 +47,8 @@ export function RoleLayoutShell({
         </SheetContent>
       </Sheet>
 
-      {/* 主内容区：Topbar + 页面 */}
-      <div className="flex flex-1 flex-col min-w-0">
+      {/* 主内容区：Topbar 固定，仅 main 区域滚动 */}
+      <div className="flex min-h-0 flex-1 flex-col min-w-0 overflow-hidden">
         <AppTopbar
           title={title}
           rightSlot={

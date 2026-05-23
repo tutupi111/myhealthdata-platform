@@ -56,7 +56,7 @@ export function AppSidebar({
           </Link>
         </div>
       )}
-      <nav className="flex-1 space-y-1 overflow-auto p-2">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -78,7 +78,7 @@ export function AppSidebar({
           );
         })}
       </nav>
-      <div className="border-t border-sidebar-border p-2 space-y-1">
+      <div className="shrink-0 border-t border-sidebar-border bg-sidebar-background p-2 space-y-1">
         <button
           type="button"
           onClick={handleLogout}
