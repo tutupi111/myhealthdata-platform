@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ehfProcessHealthRecord, ehfUploadHealthRecord } from "@/lib/api/ehfClient";
 import { parseApiErrorMessage, recordTypeCodes, recordTypeLabel } from "@/lib/api/constants";
 import { useLocale } from "@/context/LocaleContext";
+import { getMessages } from "@/lib/i18n";
 import { PageSection } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,8 @@ type UploadMessage = { type: "success" | "error"; text: string } | null;
 
 export default function PatientUploadPage() {
   const router = useRouter();
-  const { t } = useLocale();
-  const up = t("upload");
+  const { locale } = useLocale();
+  const up = getMessages(locale).upload;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [recordType, setRecordType] = useState("");

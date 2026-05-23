@@ -1,11 +1,12 @@
 "use client";
 
 import { useLocale } from "@/context/LocaleContext";
+import { getMessages } from "@/lib/i18n";
 
 /** 管理端 AI 配置页：说明服务器 OCR 流水线与常见模型报错 */
 export function AdminAiConfigHints({ showMoonshot = true }: { showMoonshot?: boolean }) {
-  const { t } = useLocale();
-  const hints = t("adminAi");
+  const { locale } = useLocale();
+  const hints = getMessages(locale).adminAi;
 
   return (
     <div className="space-y-3">

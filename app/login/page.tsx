@@ -30,6 +30,11 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [fieldsLocked, setFieldsLocked] = useState(true);
 
+  const registered = searchParams.get("registered") === "1";
+  const reset = searchParams.get("reset") === "1";
+  const redirect = searchParams.get("redirect");
+  const roleParam = searchParams.get("role");
+
   /** 进入页面或切换三端入口时清空，避免浏览器自动填充上次账号 */
   useEffect(() => {
     setEmail("");
@@ -37,11 +42,6 @@ function LoginForm() {
     setError("");
     setFieldsLocked(true);
   }, [roleParam]);
-
-  const registered = searchParams.get("registered") === "1";
-  const reset = searchParams.get("reset") === "1";
-  const redirect = searchParams.get("redirect");
-  const roleParam = searchParams.get("role");
   const isAdminLogin = roleParam === "admin";
   const isPortalLogin =
     roleParam === "patient" || roleParam === "researcher" || roleParam === "admin";

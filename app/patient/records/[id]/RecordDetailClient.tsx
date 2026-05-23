@@ -13,6 +13,7 @@ import {
   shouldUseStructuredDataView,
 } from "@/components/healthRecord/StructuredDataView";
 import { useLocale } from "@/context/LocaleContext";
+import { getMessages } from "@/lib/i18n";
 import {
   fileTypeLabel,
   formatEhfDate,
@@ -37,8 +38,8 @@ interface RecordDetailClientProps {
 }
 
 export function RecordDetailClient({ recordId }: RecordDetailClientProps) {
-  const { t } = useLocale();
-  const rp = t("recordProcessing");
+  const { t, locale } = useLocale();
+  const rp = getMessages(locale).recordProcessing;
   const [record, setRecord] = useState<HealthRecord | null | "loading">("loading");
   const [pollError, setPollError] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);

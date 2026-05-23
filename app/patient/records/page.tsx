@@ -12,6 +12,7 @@ import {
   parseApiErrorMessage,
 } from "@/lib/api/constants";
 import { useLocale } from "@/context/LocaleContext";
+import { getMessages } from "@/lib/i18n";
 import {
   getProcessingFailureKind,
   getProcessingStatusLabel,
@@ -177,8 +178,8 @@ export default function PatientRecordsPage() {
 }
 
 function RecordListItem({ record }: { record: HealthRecord }) {
-  const { t } = useLocale();
-  const rp = t("recordProcessing");
+  const { t, locale } = useLocale();
+  const rp = getMessages(locale).recordProcessing;
   const statusLabel = getProcessingStatusLabel(record.processing_status, rp);
   const failureKind = getProcessingFailureKind(record);
   const statusVariant =

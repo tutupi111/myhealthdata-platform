@@ -107,7 +107,7 @@ export function normalizeAiTaskConfigRows(data: unknown): AiTaskConfigRow[] {
     const fallback = resolveModelRef(raw, "fallback");
 
     return {
-      ...(raw as AiTaskConfig),
+      ...(raw as unknown as AiTaskConfig),
       id: String(raw.id ?? ""),
       task_type: String(raw.task_type ?? raw.taskType ?? ""),
       preferred_model_id: preferred.modelId,
