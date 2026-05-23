@@ -1,3 +1,4 @@
+import { normalizeAdminDashboardStats } from "./normalizeAdminDashboardStats";
 import type {
   AdminDashboardStats,
   AdminPatient,
@@ -481,7 +482,8 @@ export async function ehfPatchRequest(
 // ── Admin ──
 
 export async function ehfAdminDashboardStats(): Promise<AdminDashboardStats> {
-  return ehfFetch<AdminDashboardStats>("/v1/ehf/admin/dashboard/stats");
+  const raw = await ehfFetch<unknown>("/v1/ehf/admin/dashboard/stats");
+  return normalizeAdminDashboardStats(raw);
 }
 
 export async function ehfAdminListPatients(params?: {

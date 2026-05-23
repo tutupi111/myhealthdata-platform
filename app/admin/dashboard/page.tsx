@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/ehfClient";
 import type { AdminDashboardStats, AuditLog } from "@/lib/api/ehfTypes";
 import { formatEhfDate, parseApiErrorMessage } from "@/lib/api/constants";
+import { extractPaginatedItems } from "@/lib/api/unwrapApiResponse";
 import { PageSection } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ export default function AdminDashboardPage() {
         ]);
         if (!cancelled) {
           setStats(s);
-          setLogs(l.items ?? []);
+          setLogs(extractPaginatedItems<AuditLog>(l));
         }
       } catch (err) {
         if (!cancelled) setError(parseApiErrorMessage(err));
