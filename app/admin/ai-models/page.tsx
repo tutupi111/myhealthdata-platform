@@ -30,6 +30,14 @@ import { parseApiErrorMessage } from "@/lib/api/constants";
 import { useLocale } from "@/context/LocaleContext";
 import { AdminAiConfigHints } from "@/components/admin/AdminAiConfigHints";
 
+function resolveApiKeySet(m: AiModel): boolean {
+  if (m.api_key_set === true) return true;
+  if (m.api_key_set === false) return false;
+  const raw = m as unknown as Record<string, unknown>;
+  if (raw.apiKeySet === true || raw.has_api_key === true) return true;
+  return false;
+}
+
 export default function AdminAiModelsPage() {
   const { t } = useLocale();
   const [models, setModels] = useState<AiModel[]>([]);
@@ -42,6 +50,13 @@ export default function AdminAiModelsPage() {
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [testOk, setTestOk] = useState<boolean | null>(null);
   const [rowTestingId, setRowTestingId] = useState<string | null>(null);
+  /** 列表行测试反馈（testMessage 仅在抽屉内展示，需单独状态） */
+  const [listTestFeedback, setListTestFeedback] = useState<{
+    modelId: string;
+    modelLabel: string;
+    ok: boolean;
+    message: string;
+  } | null>(null);
   const [form, setForm] = useState({
     provider: "",
     model_name: "",
@@ -60,7 +75,12 @@ export default function AdminAiModelsPage() {
     setError(null);
     try {
       const data = await ehfAdminListAiModels({ page_size: 100 });
-      setModels(extractPaginatedItems<AiModel>(data));
+      setModels(
+        extractPaginatedItems<AiModel>(data).map((m) => ({
+          ...m,
+          api_key_set: resolveApiKeySet(m),
+        }))
+      );
     } catch (e) {
       setError(parseApiErrorMessage(e));
       setModels([]);
@@ -191,22 +211,29 @@ export default function AdminAiModelsPage() {
   };
 
   const testRowModel = async (m: AiModel) => {
-    if (!m.api_key_set) {
-      alert("该模型未配置 API Key，请先编辑并保存密钥后再测试。");
-      return;
-    }
+    const modelLabel = `${m.provider} / ${m.model_name}`;
     setRowTestingId(m.id);
-    setTestMessage(null);
-    setTestOk(null);
+    setListTestFeedback(null);
     setTesting(true);
     try {
       const result = await testSavedAiModel(m.id);
-      setTestOk(result.ok);
-      setTestMessage(
+      const message =
         result.latencyMs != null
           ? `${result.message}（${result.latencyMs} ms）`
-          : result.message
-      );
+          : result.message;
+      setListTestFeedback({
+        modelId: m.id,
+        modelLabel,
+        ok: result.ok,
+        message,
+      });
+    } catch (e) {
+      setListTestFeedback({
+        modelId: m.id,
+        modelLabel,
+        ok: false,
+        message: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setTesting(false);
       setRowTestingId(null);
@@ -390,6 +417,28 @@ export default function AdminAiModelsPage() {
 
       <PageSection title="模型列表" description="管理可用于 AI 任务的模型">
         <Card>
+          {listTestFeedback && (
+            <div
+              className={`mx-4 mt-4 rounded-md border px-4 py-3 text-sm ${
+                listTestFeedback.ok
+                  ? "border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950/40 dark:text-green-100"
+                  : "border-destructive/30 bg-destructive/10 text-destructive"
+              }`}
+              role="status"
+            >
+              <p className="font-medium">
+                连通测试 · {listTestFeedback.modelLabel}
+              </p>
+              <p className="mt-1">{listTestFeedback.message}</p>
+              <button
+                type="button"
+                className="mt-2 text-xs underline opacity-80 hover:opacity-100"
+                onClick={() => setListTestFeedback(null)}
+              >
+                关闭
+              </button>
+            </div>
+          )}
           {error && (
             <p className="p-4 text-destructive text-sm">{error}</p>
           )}
@@ -451,8 +500,12 @@ export default function AdminAiModelsPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            title={m.api_key_set ? "测试 API 连通" : "需先配置 API Key"}
-                            disabled={!m.api_key_set || rowTestingId === m.id}
+                            title={
+                              m.api_key_set
+                                ? "测试 API 连通"
+                                : "未标记 api_key_set，仍可尝试测试（依赖服务端已存密钥）"
+                            }
+                            disabled={rowTestingId === m.id}
                             onClick={() => testRowModel(m)}
                           >
                             {rowTestingId === m.id ? (
