@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  ehfAdminListHealthRecords,
-  ehfAdminReviewHealthRecord,
-} from "@/lib/api/ehfClient";
+import Link from "next/link";
+import { ehfAdminListHealthRecords } from "@/lib/api/ehfClient";
 import type { HealthRecord } from "@/lib/api/ehfTypes";
 import { formatEhfDate, parseApiErrorMessage } from "@/lib/api/constants";
+import { extractPaginatedItems } from "@/lib/api/unwrapApiResponse";
 import { PageSection } from "@/components/layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Eye } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -37,14 +37,12 @@ export default function AdminRecordsPage() {
   const [records, setRecords] = useState<HealthRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actingId, setActingId] = useState<string | null>(null);
-
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await ehfAdminListHealthRecords({ page_size: 100 });
-      setRecords(data.items ?? []);
+      setRecords(extractPaginatedItems<HealthRecord>(data));
     } catch (err) {
       setError(parseApiErrorMessage(err));
     } finally {
@@ -55,18 +53,6 @@ export default function AdminRecordsPage() {
   useEffect(() => {
     load();
   }, []);
-
-  const handleReview = async (id: string, review_status: "approved" | "rejected") => {
-    setActingId(id);
-    try {
-      await ehfAdminReviewHealthRecord(id, { review_status });
-      await load();
-    } catch (err) {
-      setError(parseApiErrorMessage(err));
-    } finally {
-      setActingId(null);
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -91,13 +77,27 @@ export default function AdminRecordsPage() {
                   <TableHead>文件名</TableHead>
                   <TableHead>上传时间</TableHead>
                   <TableHead>审核状态</TableHead>
-                  <TableHead className="w-[160px]">操作</TableHead>
+                  <TableHead className="w-[120px]">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {records.map((r) => (
+                {records.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      暂无资料
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                records.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.title || r.file_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/admin/records/${r.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {r.title || r.file_name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{r.file_name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatEhfDate(r.created_at)}
@@ -108,28 +108,16 @@ export default function AdminRecordsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {(r.review_status ?? "pending") === "pending" && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            disabled={actingId === r.id}
-                            onClick={() => handleReview(r.id, "approved")}
-                          >
-                            通过
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled={actingId === r.id}
-                            onClick={() => handleReview(r.id, "rejected")}
-                          >
-                            驳回
-                          </Button>
-                        </div>
-                      )}
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/admin/records/${r.id}`}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          查看审核
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                ))
+                )}
               </TableBody>
             </Table>
           </Card>
